@@ -18,17 +18,9 @@ certifi==2023.7.22
 charset-normalizer==3.2.0
 idna==3.4
 
-# Поддержка различных баз данных
-psycopg2-binary==2.9.7  # PostgreSQL
-PyMySQL==1.1.0          # MySQL/MariaDB
+psycopg2-binary==2.9.7
+PyMySQL==1.1.0
 
-# Дополнительные утилиты
-python-dotenv==1.0.0    # Загрузка .env файлов
-gunicorn==21.2.0        # WSGI сервер для продакшена
-waitress==2.1.2         # Альтернативный WSGI сервер
-
-# Опциональные зависимости
-# Flask-Migrate==4.0.5   # Миграции базы данных
-# Flask-Mail==0.9.1      # Отправка email
-# celery==5.3.1          # Фоновые задачи
-# redis==4.6.0           # Кеширование и очереди
+python-dotenv==1.0.0
+gunicorn==21.2.0
+waitress==2.1.2
