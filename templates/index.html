@@ -1,199 +1,4 @@
-function executeValidation() {
-        const threads = parseInt(document.getElementById('validationThreads').value);
-        const timeout = parseInt(document.getElementById('validationTimeout').value);
-        const useRobust = document.getElementById('useRobustHandler').checked;
-        
-        bootstrap.Modal.getInstance(document.getElementById('validationModal')).hide();
-        
-        if (currentOperation) {
-            alert('Уже выполняется операция');
-            return;
-        }
-
-        currentOperation = 'validation';
-        showProgress(useRobust ? 'Валидация серверов (устойчивый режим)...' : 'Валидация серверов...');
-
-        fetch('/validate', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                server_ids: [],
-                threads: threads,
-                timeout: timeout,
-                use_robust: useRobust
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                progressInterval = setInterval(checkValidationStatusExtended, 1000);
-            } else {
-                alert('Ошибка: ' + data.error);
-                hideProgress();
-                currentOperation = null;
-            }
-        })
-        .catch(error => {
-            console.error('Ошибка:', error);
-            hideProgress();
-            currentOperation = null;
-        });
-    }
-
-    function checkValidationStatusExtended() {
-        fetch('/validation_status')
-        .then(response => response.json())
-        .then(data => {
-            if (data.running) {
-                updateProgressExtended(data);
-            } else {
-                hideProgress();
-                currentOperation = null;
-                
-                // Показываем расширенную статистику
-                if (data.banner_errors > 0 || data.robust_recoveries > 0) {
-                    showValidationSummary(data);
-                }
-                
-                location.reload();
-            }
-        })
-        .catch(error => {
-            console.error('Ошибка:', error);
-            hideProgress();
-            currentOperation = null;
-        });
-    }
-
-    function updateProgressExtended(status) {
-        updateProgress(status);
-        
-        // Добавляем расширенную информацию для устойчивого обработчика
-        if (status.banner_errors > 0 || status.robust_recoveries > 0) {
-            const additionalInfo = document.getElementById('progressDetails');
-            if (additionalInfo) {
-                let details = `Потоков: ${status.threads}, Таймаут: ${status.timeout}с`;
-                
-                if (status.banner_errors > 0) {
-                    details += `, Banner ошибок: ${status.banner_errors}`;
-                    if (status.robust_recoveries > 0) {
-                        details += `, Восстановлено: ${status.robust_recoveries}`;
-                    }
-                }
-                
-                additionalInfo.textContent = details;
-            }
-        }
-    }
-
-    function showValidationSummary(data) {
-        const totalServers = data.total || 0;
-        const bannerErrors = data.banner_errors || 0;
-        const recoveries = data.robust_recoveries || 0;
-        const bannerErrorRate = data.banner_error_rate || 0;
-        const recoveryRate = data.recovery_rate || 0;
-        
-        let summaryHtml = `
-            <div class="modal fade" id="validationSummaryModal" tabindex="-1">
-                <div class="modal-dialog modal-lg">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title">
-                                <i class="fas fa-chart-line me-2"></i>Результаты валидации
-                            </h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                        </div>
-                        <div class="modal-body">
-                            <div class="row mb-3">
-                                <div class="col-md-6">
-                                    <div class="card border-primary">
-                                        <div class="card-body text-center">
-                                            <h3 class="text-primary">${totalServers}</h3>
-                                            <p class="mb-0">Всего серверов</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="card border-warning">
-                                        <div class="card-body text-center">
-                                            <h3 class="text-warning">${bannerErrors}</h3>
-                                            <p class="mb-0">Banner timeout ошибок</p>
-                                            <small class="text-muted">${bannerErrorRate.toFixed(1)}% от всех</small>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-        `;
-        
-        if (bannerErrors > 0) {
-            summaryHtml += `
-                <div class="alert alert-info">
-                    <h6 class="alert-heading">
-                        <i class="fas fa-shield-alt me-1"></i>Устойчивый обработчик SSH
-                    </h6>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <p class="mb-1"><strong>Обнаружено ошибок:</strong> ${bannerErrors}</p>
-                            <p class="mb-1"><strong>Восстановлено:</strong> ${recoveries}</p>
-                            <p class="mb-0"><strong>Процент восстановления:</strong> ${recoveryRate.toFixed(1)}%</p>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="progress mb-2">
-                                <div class="progress-bar bg-success" style="width: ${recoveryRate}%"></div>
-                            </div>
-                            <small class="text-muted">Эффективность устойчивого обработчика</small>
-                        </div>
-                    </div>
-                </div>
-            `;
-            
-            if (recoveryRate < 50) {
-                summaryHtml += `
-                    <div class="alert alert-warning">
-                        <h6 class="alert-heading">Рекомендации</h6>
-                        <ul class="mb-0">
-                            <li>Увеличьте таймаут до 20-30 секунд для медленных серверов</li>
-                            <li>Уменьшите количество потоков до 5-10 для снижения нагрузки</li>
-                            <li>Рассмотрите возможность исключения недоступных серверов</li>
-                        </ul>
-                    </div>
-                `;
-            } else {
-                summaryHtml += `
-                    <div class="alert alert-success">
-                        <h6 class="alert-heading">Отличная работа!</h6>
-                        <p class="mb-0">Устойчивый обработчик успешно справился с большинством проблемных подключений.</p>
-                    </div>
-                `;
-            }
-        }
-        
-        summaryHtml += `
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
-                            <button type="button" class="btn btn-primary" onclick="showErrorMonitoring()">
-                                <i class="fas fa-chart-bar me-1"></i>Подробная аналитика
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        document.body.insertAdjacentHTML('beforeend', summaryHtml);
-        const modal = new bootstrap.Modal(document.getElementById('validationSummaryModal'));
-        modal.show();
-        
-        // Удаляем модальное окно после закрытия
-        document.getElementById('validationSummaryModal').addEventListener('hidden.bs.modal', function() {
-            this.remove();
-        });
-    }
-
-    function showErrorMonitoring() {
-        window.location.href = '/errors';
-    }{% extends "base.html" %}
+{% extends "base.html" %}
 
 {% block title %}Главная - SSH Server Manager{% endblock %}
 
@@ -211,6 +16,11 @@ function executeValidation() {
                     data-bs-toggle="tooltip" data-bs-placement="bottom"
                     title="Выполнить произвольную команду на всех доступных серверах с настройкой параллельности">
                 <i class="fas fa-terminal me-1"></i> Выполнить команду
+            </button>
+            <button type="button" class="btn btn-outline-warning" onclick="clearAllErrors()"
+                    data-bs-toggle="tooltip" data-bs-placement="bottom"
+                    title="Очистить все ошибки и сбросить статус проверки серверов">
+                <i class="fas fa-broom me-1"></i> Очистить ошибки
             </button>
         </div>
     </div>
@@ -312,6 +122,11 @@ function executeValidation() {
                        title="Загрузить список серверов из текстового файла">
                         <i class="fas fa-upload me-2"></i>Загрузить серверы
                     </a>
+                    <button class="btn btn-outline-danger" onclick="clearAllErrors()"
+                            data-bs-toggle="tooltip" data-bs-placement="left"
+                            title="Очистить все ошибки подключения и сбросить статус всех серверов">
+                        <i class="fas fa-broom me-2"></i>Очистить все ошибки
+                    </button>
                 </div>
             </div>
         </div>
@@ -395,6 +210,11 @@ function executeValidation() {
                                        title="Просмотреть подробную информацию о сервере">
                                         <i class="fas fa-eye"></i>
                                     </a>
+                                    <button class="btn btn-outline-warning btn-sm" onclick="clearServerError({{ server.id }})"
+                                            data-bs-toggle="tooltip" data-bs-placement="top"
+                                            title="Очистить ошибки для этого сервера">
+                                        <i class="fas fa-eraser"></i>
+                                    </button>
                                 </div>
                             </td>
                         </tr>
@@ -448,26 +268,14 @@ function executeValidation() {
                         <label for="validationTimeout" class="form-label">
                             <i class="fas fa-clock me-1"></i>Таймаут (сек)
                         </label>
-                        <input type="range" class="form-range" min="5" max="60" value="10" id="validationTimeout">
+                        <input type="range" class="form-range" min="5" max="60" value="15" id="validationTimeout">
                         <div class="text-center">
-                            <span class="badge bg-info" id="validationTimeoutValue">10с</span>
+                            <span class="badge bg-info" id="validationTimeoutValue">15с</span>
                         </div>
                     </div>
                 </div>
                 
-                <div class="mb-3">
-                    <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" id="useRobustHandler" checked>
-                        <label class="form-check-label" for="useRobustHandler">
-                            <strong><i class="fas fa-shield-alt me-1"></i>Использовать устойчивый обработчик SSH</strong>
-                        </label>
-                        <small class="form-text text-muted d-block">
-                            Автоматически решает проблемы с "SSH protocol banner timeout" и другими сложными ошибками подключения
-                        </small>
-                    </div>
-                </div>
-                
-                <div class="alert alert-info">
+                <div class="alert alert-info mt-3">
                     <h6 class="alert-heading"><i class="fas fa-info-circle me-1"></i>Что будет выполнено:</h6>
                     <ul class="mb-0">
                         <li>Проверка SSH подключения к каждому серверу</li>
@@ -484,7 +292,7 @@ function executeValidation() {
                                 <h6 class="card-title text-success mb-2">Быстро</h6>
                                 <p class="card-text small mb-2">
                                     50 потоков<br>
-                                    7 сек
+                                    10 сек
                                 </p>
                                 <button type="button" class="btn btn-sm btn-success" onclick="setValidationFast()">
                                     Применить
@@ -498,7 +306,7 @@ function executeValidation() {
                                 <h6 class="card-title text-warning mb-2">Надежно</h6>
                                 <p class="card-text small mb-2">
                                     15 потоков<br>
-                                    15 сек
+                                    20 сек
                                 </p>
                                 <button type="button" class="btn btn-sm btn-warning" onclick="setValidationReliable()">
                                     Применить
@@ -543,9 +351,9 @@ function executeValidation() {
                         <label for="commandTimeout" class="form-label">
                             <i class="fas fa-clock me-1"></i>Таймаут (сек)
                         </label>
-                        <input type="range" class="form-range" min="5" max="60" value="10" id="commandTimeout">
+                        <input type="range" class="form-range" min="5" max="60" value="15" id="commandTimeout">
                         <div class="text-center">
-                            <span class="badge bg-info" id="commandTimeoutValue">10с</span>
+                            <span class="badge bg-info" id="commandTimeoutValue">15с</span>
                         </div>
                     </div>
                 </div>
@@ -610,9 +418,9 @@ function executeValidation() {
                         <label for="sysInfoTimeout" class="form-label">
                             <i class="fas fa-clock me-1"></i>Таймаут (сек)
                         </label>
-                        <input type="range" class="form-range" min="10" max="60" value="15" id="sysInfoTimeout">
+                        <input type="range" class="form-range" min="10" max="60" value="20" id="sysInfoTimeout">
                         <div class="text-center">
-                            <span class="badge bg-info" id="sysInfoTimeoutValue">15с</span>
+                            <span class="badge bg-info" id="sysInfoTimeoutValue">20с</span>
                         </div>
                     </div>
                 </div>
@@ -715,6 +523,37 @@ function executeValidation() {
         </div>
     </div>
 </div>
+
+<!-- Модальное окно очистки ошибок -->
+<div class="modal fade" id="clearErrorsModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-broom me-2"></i>Очистка ошибок
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <h6 class="alert-heading"><i class="fas fa-info-circle me-1"></i>Что будет выполнено:</h6>
+                    <ul class="mb-0">
+                        <li>Очистка всех ошибок подключения</li>
+                        <li>Сброс статуса проверки для всех серверов</li>
+                        <li>Установка статуса "Не проверен" для всех серверов</li>
+                    </ul>
+                </div>
+                <p>Вы уверены, что хотите очистить все ошибки? Это действие сбросит статус всех серверов в "Не проверен".</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-warning" onclick="confirmClearAllErrors()">
+                    <i class="fas fa-broom me-1"></i>Очистить все ошибки
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -723,7 +562,7 @@ function executeValidation() {
     function showValidationModal() {
         // Устанавливаем значения из глобальных настроек
         document.getElementById('validationThreads').value = currentSettings.threads;
-        document.getElementById('validationTimeout').value = currentSettings.timeout;
+        document.getElementById('validationTimeout').value = Math.max(currentSettings.timeout, 15);
         updateValidationValues();
         
         new bootstrap.Modal(document.getElementById('validationModal')).show();
@@ -731,7 +570,7 @@ function executeValidation() {
 
     function showCommandModal() {
         document.getElementById('commandThreads').value = currentSettings.threads;
-        document.getElementById('commandTimeout').value = currentSettings.timeout;
+        document.getElementById('commandTimeout').value = Math.max(currentSettings.timeout, 15);
         updateCommandValues();
         
         new bootstrap.Modal(document.getElementById('commandModal')).show();
@@ -739,7 +578,7 @@ function executeValidation() {
 
     function showSystemInfoModal() {
         document.getElementById('sysInfoThreads').value = Math.min(currentSettings.threads, 30);
-        document.getElementById('sysInfoTimeout').value = Math.max(currentSettings.timeout, 15);
+        document.getElementById('sysInfoTimeout').value = Math.max(currentSettings.timeout, 20);
         updateSystemInfoValues();
         
         new bootstrap.Modal(document.getElementById('systemInfoModal')).show();
@@ -752,13 +591,13 @@ function executeValidation() {
     // Предустановленные конфигурации
     function setValidationFast() {
         document.getElementById('validationThreads').value = 50;
-        document.getElementById('validationTimeout').value = 7;
+        document.getElementById('validationTimeout').value = 10;
         updateValidationValues();
     }
 
     function setValidationReliable() {
         document.getElementById('validationThreads').value = 15;
-        document.getElementById('validationTimeout').value = 15;
+        document.getElementById('validationTimeout').value = 20;
         updateValidationValues();
     }
 
@@ -968,56 +807,58 @@ function executeValidation() {
         }
     }
 
-    // Утилиты
-    function setCommand(command) {
-        document.getElementById('commandText').value = command;
+    // Функции очистки ошибок
+    function clearAllErrors() {
+        new bootstrap.Modal(document.getElementById('clearErrorsModal')).show();
     }
 
-    // Предустановленные команды
-    function executeSystemInfoCommand() {
-        executeCommandWithText('uname -a && free -h && df -h');
-    }
-    
-    function executeUpdateCommand() {
-        if (confirm('Вы уверены, что хотите обновить все системы?')) {
-            executeCommandWithText('sudo apt update && sudo apt upgrade -y || sudo yum update -y');
-        }
-    }
-    
-    function executeCommandWithText(command) {
-        if (currentOperation) {
-            alert('Уже выполняется операция');
-            return;
-        }
+    function confirmClearAllErrors() {
+        bootstrap.Modal.getInstance(document.getElementById('clearErrorsModal')).hide();
         
-        currentOperation = 'command';
-        showProgress('Выполнение команды...');
-        
-        fetch('/execute_command', {
+        fetch('/clear_errors', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                command: command,
-                server_ids: [],
-                threads: currentSettings.threads,
-                timeout: currentSettings.timeout
-            })
+            body: JSON.stringify({action: 'clear_all'})
         })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                progressInterval = setInterval(checkCommandStatus, 1000);
+                showToast('Все ошибки очищены', 'success');
+                setTimeout(() => location.reload(), 1000);
             } else {
-                alert('Ошибка: ' + data.error);
-                hideProgress();
-                currentOperation = null;
+                showToast('Ошибка очистки: ' + data.error, 'error');
             }
         })
         .catch(error => {
             console.error('Ошибка:', error);
-            hideProgress();
-            currentOperation = null;
+            showToast('Ошибка выполнения запроса', 'error');
         });
+    }
+
+    function clearServerError(serverId) {
+        fetch('/clear_errors', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({action: 'clear_server', server_id: serverId})
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast('Ошибки сервера очищены', 'success');
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                showToast('Ошибка очистки: ' + data.error, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Ошибка:', error);
+            showToast('Ошибка выполнения запроса', 'error');
+        });
+    }
+
+    // Утилиты
+    function setCommand(command) {
+        document.getElementById('commandText').value = command;
     }
 
     // График распределения по странам
