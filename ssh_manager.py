@@ -3,17 +3,18 @@ import socket
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
-import queue
+import os
 from typing import List, Tuple, Dict, Optional, Callable
 import logging
 
 # Настройка логирования
 logging.getLogger("paramiko").setLevel(logging.WARNING)
+paramiko.util.log_to_file(os.devnull)
 
 class SSHManager:
     """Улучшенный класс для управления SSH соединениями с надежной обработкой ошибок"""
     
-    def __init__(self, max_workers=20, timeout=10):
+    def __init__(self, max_workers=20, timeout=15):
         self.max_workers = max_workers
         self.timeout = timeout
         self.active_connections = {}
@@ -26,168 +27,173 @@ class SSHManager:
             'last_update': None
         }
         
-        # Настройки для улучшенной надежности
-        self.retry_attempts = 2
-        self.banner_timeout = min(5, timeout // 2)  # Таймаут для SSH banner
-        self.auth_timeout = min(10, timeout)        # Таймаут для аутентификации
+        # Улучшенные настройки для надежности (как в вашем скрипте)
+        self.retry_attempts = 1  # Убираем лишние попытки
+        self.banner_timeout = 10  # Увеличиваем banner timeout
+        self.auth_timeout = 10    # Увеличиваем auth timeout
+        self.connect_timeout = timeout
+    
+    def check_port_open(self, host: str, port: int = 22, timeout: int = 5) -> bool:
+        """Проверяет открыт ли порт на хосте (как в вашем скрипте)"""
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(timeout)
+            result = sock.connect_ex((host, port))
+            sock.close()
+            return result == 0
+        except:
+            return False
     
     def test_connection(self, host: str, port: int, username: str, password: str) -> Tuple[bool, Optional[str]]:
         """
-        Тестирование SSH соединения с улучшенной обработкой ошибок
+        Тестирование SSH соединения с логикой из вашего скрипта
         
         Returns:
             tuple: (is_valid: bool, error_message: str or None)
         """
-        for attempt in range(self.retry_attempts):
-            try:
-                client = paramiko.SSHClient()
-                client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-                
-                # Более детальные настройки таймаутов
-                client.connect(
-                    hostname=host,
-                    port=port,
-                    username=username,
-                    password=password,
-                    timeout=self.timeout,
-                    banner_timeout=self.banner_timeout,
-                    auth_timeout=self.auth_timeout,
-                    look_for_keys=False,
-                    allow_agent=False,
-                    # Дополнительные параметры для надежности
-                    disabled_algorithms={'pubkeys': ['rsa-sha2-256', 'rsa-sha2-512']},
-                    compress=False
-                )
-                
-                # Быстрый тест выполнения команды
-                try:
-                    stdin, stdout, stderr = client.exec_command('echo "test"', timeout=5)
-                    result = stdout.read().decode().strip()
-                    stderr_output = stderr.read().decode().strip()
-                    
-                    client.close()
-                    
-                    if result == "test":
-                        return True, None
-                    elif stderr_output:
-                        return False, f"Команда выполнена с ошибкой: {stderr_output}"
-                    else:
-                        return False, "Команда не выполнилась корректно"
-                        
-                except Exception as exec_error:
-                    client.close()
-                    return False, f"Ошибка выполнения команды: {str(exec_error)}"
-                    
-            except paramiko.AuthenticationException:
-                return False, "Ошибка аутентификации: неверные логин/пароль"
-            except paramiko.SSHException as ssh_error:
-                error_msg = str(ssh_error)
-                if "Error reading SSH protocol banner" in error_msg:
-                    if attempt < self.retry_attempts - 1:
-                        time.sleep(1)  # Небольшая пауза перед повтором
-                        continue
-                    return False, "SSH сервер не отвечает (banner timeout)"
-                elif "not open" in error_msg.lower():
-                    return False, "SSH порт закрыт или заблокирован"
-                elif "timed out" in error_msg.lower():
-                    return False, "Превышен таймаут SSH подключения"
-                else:
-                    return False, f"SSH ошибка: {error_msg}"
-            except socket.timeout:
-                if attempt < self.retry_attempts - 1:
-                    time.sleep(1)
-                    continue
-                return False, "Превышен таймаут подключения"
-            except socket.gaierror as dns_error:
-                return False, f"Не удается разрешить имя хоста: {str(dns_error)}"
-            except ConnectionRefusedError:
-                return False, "Соединение отклонено (порт закрыт)"
-            except ConnectionResetError:
-                return False, "Соединение сброшено удаленным хостом"
-            except OSError as os_error:
-                error_msg = str(os_error)
-                if "No route to host" in error_msg:
-                    return False, "Нет маршрута до хоста"
-                elif "Network is unreachable" in error_msg:
-                    return False, "Сеть недоступна"
-                else:
-                    return False, f"Сетевая ошибка: {error_msg}"
-            except Exception as e:
-                error_msg = str(e)
-                if attempt < self.retry_attempts - 1:
-                    time.sleep(1)
-                    continue
-                return False, f"Неизвестная ошибка: {error_msg}"
+        # Сначала проверяем порт (как в вашем скрипте)
+        if not self.check_port_open(host, port, timeout=5):
+            return False, "Порт закрыт или недоступен"
         
-        return False, "Не удалось подключиться после нескольких попыток"
+        client = None
+        try:
+            client = paramiko.SSHClient()
+            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            
+            # Настройки подключения как в вашем скрипте
+            client.connect(
+                hostname=host,
+                port=port,
+                username=username,
+                password=password,
+                timeout=self.connect_timeout,
+                banner_timeout=self.banner_timeout,
+                auth_timeout=self.auth_timeout,
+                look_for_keys=False,
+                allow_agent=False
+            )
+            
+            # Быстрый тест выполнения команды (как в вашем скрипте)
+            stdin, stdout, stderr = client.exec_command('echo "test"', timeout=10)
+            result = stdout.read().decode('utf-8', errors='ignore').strip()
+            stderr_output = stderr.read().decode('utf-8', errors='ignore').strip()
+            
+            if result == "test":
+                return True, None
+            elif stderr_output:
+                return False, f"Команда выполнена с ошибкой: {stderr_output}"
+            else:
+                return False, "Команда не выполнилась корректно"
+                
+        except paramiko.AuthenticationException:
+            return False, "Ошибка аутентификации: неверные логин/пароль"
+            
+        except paramiko.SSHException as ssh_error:
+            error_msg = str(ssh_error)
+            if "Error reading SSH protocol banner" in error_msg:
+                return False, "SSH сервер не отвечает (banner timeout)"
+            elif "not open" in error_msg.lower():
+                return False, "SSH порт закрыт или заблокирован"
+            elif "timed out" in error_msg.lower():
+                return False, "Превышен таймаут SSH подключения"
+            else:
+                return False, f"SSH ошибка: {error_msg}"
+                
+        except socket.timeout:
+            return False, "Превышен таймаут подключения"
+            
+        except socket.gaierror as dns_error:
+            return False, f"Не удается разрешить имя хоста: {str(dns_error)}"
+            
+        except ConnectionRefusedError:
+            return False, "Соединение отклонено (порт закрыт)"
+            
+        except ConnectionResetError:
+            return False, "Соединение сброшено удаленным хостом"
+            
+        except OSError as os_error:
+            error_msg = str(os_error)
+            if "No route to host" in error_msg:
+                return False, "Нет маршрута до хоста"
+            elif "Network is unreachable" in error_msg:
+                return False, "Сеть недоступна"
+            else:
+                return False, f"Сетевая ошибка: {error_msg}"
+                
+        except Exception as e:
+            error_msg = str(e)
+            if len(error_msg) > 50:
+                error_msg = error_msg[:47] + "..."
+            return False, f"Ошибка: {error_msg}"
+            
+        finally:
+            if client:
+                try:
+                    client.close()
+                except:
+                    pass
+        
+        return False, "Не удалось подключиться"
     
     def execute_command(self, host: str, port: int, username: str, password: str, command: str) -> Tuple[str, Optional[str]]:
         """
-        Выполнение команды на удаленном сервере с улучшенной обработкой ошибок
+        Выполнение команды на удаленном сервере
         
         Returns:
             tuple: (output: str, error: str or None)
         """
-        for attempt in range(self.retry_attempts):
-            try:
-                client = paramiko.SSHClient()
-                client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-                
-                client.connect(
-                    hostname=host,
-                    port=port,
-                    username=username,
-                    password=password,
-                    timeout=self.timeout,
-                    banner_timeout=self.banner_timeout,
-                    auth_timeout=self.auth_timeout,
-                    look_for_keys=False,
-                    allow_agent=False,
-                    compress=False
-                )
-                
-                # Выполняем команду с расширенным таймаутом
-                command_timeout = max(30, self.timeout * 2)
-                stdin, stdout, stderr = client.exec_command(command, timeout=command_timeout)
-                
-                # Читаем результат
-                output = stdout.read().decode('utf-8', errors='ignore').strip()
-                error_output = stderr.read().decode('utf-8', errors='ignore').strip()
-                
-                # Получаем код возврата
-                exit_status = stdout.channel.recv_exit_status()
-                
-                client.close()
-                
-                if exit_status == 0:
-                    return output, None
-                else:
-                    return output, f"Команда завершилась с кодом {exit_status}: {error_output}"
-                    
-            except paramiko.AuthenticationException:
-                return "", "Ошибка аутентификации"
-            except paramiko.SSHException as ssh_error:
-                error_msg = str(ssh_error)
-                if "Error reading SSH protocol banner" in error_msg and attempt < self.retry_attempts - 1:
-                    time.sleep(1)
-                    continue
-                return "", f"SSH ошибка: {error_msg}"
-            except socket.timeout:
-                if attempt < self.retry_attempts - 1:
-                    time.sleep(1)
-                    continue
-                return "", "Превышен таймаут выполнения команды"
-            except Exception as e:
-                if attempt < self.retry_attempts - 1:
-                    time.sleep(1)
-                    continue
-                return "", f"Ошибка выполнения: {str(e)}"
+        # Сначала проверяем порт
+        if not self.check_port_open(host, port, timeout=5):
+            return "", "Порт закрыт или недоступен"
         
-        return "", "Не удалось выполнить команду после нескольких попыток"
+        client = None
+        try:
+            client = paramiko.SSHClient()
+            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            
+            client.connect(
+                hostname=host,
+                port=port,
+                username=username,
+                password=password,
+                timeout=self.connect_timeout,
+                banner_timeout=self.banner_timeout,
+                auth_timeout=self.auth_timeout,
+                look_for_keys=False,
+                allow_agent=False
+            )
+            
+            # Выполняем команду с расширенным таймаутом
+            command_timeout = max(30, self.timeout * 2)
+            stdin, stdout, stderr = client.exec_command(command, timeout=command_timeout)
+            
+            # Читаем результат
+            output = stdout.read().decode('utf-8', errors='ignore').strip()
+            error_output = stderr.read().decode('utf-8', errors='ignore').strip()
+            
+            # Получаем код возврата
+            exit_status = stdout.channel.recv_exit_status()
+            
+            if exit_status == 0:
+                return output, None
+            else:
+                return output, f"Команда завершилась с кодом {exit_status}: {error_output}"
+                
+        except Exception as e:
+            error_msg = str(e)
+            if len(error_msg) > 50:
+                error_msg = error_msg[:47] + "..."
+            return "", f"Ошибка выполнения: {error_msg}"
+        finally:
+            if client:
+                try:
+                    client.close()
+                except:
+                    pass
     
     def get_system_info(self, host: str, port: int, username: str, password: str) -> Dict:
         """
-        Получение информации о системе с улучшенной обработкой ошибок
+        Получение информации о системе (адаптировано из вашего скрипта)
         
         Returns:
             dict: Словарь с информацией о системе
@@ -215,18 +221,7 @@ class SSHManager:
             info['error'] = f"Не удается подключиться: {error}"
             return info
         
-        # Команды для получения системной информации
-        commands = {
-            'os': 'cat /etc/os-release 2>/dev/null | head -1 | cut -d= -f2 | tr -d \'"\'|| uname -s 2>/dev/null || echo "Unknown"',
-            'cpu': 'cat /proc/cpuinfo 2>/dev/null | grep "model name" | head -1 | cut -d: -f2 | sed "s/^[ \t]*//" || echo "Unknown CPU"',
-            'cpu_cores': 'nproc 2>/dev/null || grep -c ^processor /proc/cpuinfo 2>/dev/null || echo "1"',
-            'memory': 'free -m 2>/dev/null | grep Mem || echo "Mem: 0 0 0"',
-            'disk': 'df -h / 2>/dev/null | tail -1 || echo "/ 0G 0G 0G 0% /"',
-            'uptime': 'uptime 2>/dev/null | awk \'{print $3 " " $4}\' | sed \'s/,//\' || echo "Unknown"',
-            'kernel': 'uname -r 2>/dev/null || echo "Unknown"',
-            'architecture': 'uname -m 2>/dev/null || echo "Unknown"'
-        }
-        
+        client = None
         try:
             client = paramiko.SSHClient()
             client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -236,71 +231,116 @@ class SSHManager:
                 port=port,
                 username=username,
                 password=password,
-                timeout=self.timeout,
+                timeout=self.connect_timeout,
                 banner_timeout=self.banner_timeout,
                 auth_timeout=self.auth_timeout,
                 look_for_keys=False,
-                allow_agent=False,
-                compress=False
+                allow_agent=False
             )
             
-            # Выполняем все команды последовательно с обработкой ошибок
-            for key, command in commands.items():
+            # Функция безопасного выполнения команд (из вашего скрипта)
+            def safe_exec_command(command, timeout=3):
                 try:
-                    stdin, stdout, stderr = client.exec_command(command, timeout=15)
-                    output = stdout.read().decode('utf-8', errors='ignore').strip()
-                    if output and output != "Unknown":
-                        info[key] = output
-                except Exception as cmd_error:
-                    print(f"Ошибка выполнения команды {key}: {cmd_error}")
+                    stdin, stdout, stderr = client.exec_command(command, timeout=timeout)
+                    result = stdout.read().decode('utf-8', errors='ignore').strip()
+                    return result if result else None
+                except:
+                    return None
+            
+            # Команды для определения ядер процессора (из вашего скрипта)
+            cpu_commands = [
+                'nproc',
+                'grep -c ^processor /proc/cpuinfo',
+                'sysctl -n hw.ncpu'
+            ]
+            
+            # Команды для определения памяти (из вашего скрипта)
+            memory_commands = [
+                'free -h | grep ^Mem | awk \'{print $2}\'',
+                'cat /proc/meminfo | grep MemTotal | awk \'{print $2 " " $3}\'',
+                'sysctl -n hw.memsize | awk \'{print int($1/1024/1024/1024) "G"}\''
+            ]
+            
+            # Команды для определения диска (из вашего скрипта)
+            disk_commands = [
+                'df -h / | tail -1 | awk \'{print $2 " " $5}\'',
+                'lsblk | grep disk | head -1 | awk \'{print $4}\''
+            ]
+            
+            # Дополнительные команды
+            additional_commands = {
+                'os': 'cat /etc/os-release 2>/dev/null | head -1 | cut -d= -f2 | tr -d \'"\'|| uname -s 2>/dev/null || echo "Unknown"',
+                'kernel': 'uname -r 2>/dev/null || echo "Unknown"',
+                'architecture': 'uname -m 2>/dev/null || echo "Unknown"',
+                'uptime': 'uptime 2>/dev/null | awk \'{print $3 " " $4}\' | sed \'s/,//\' || echo "Unknown"'
+            }
+            
+            # Определяем количество ядер (логика из вашего скрипта)
+            for cmd in cpu_commands:
+                result = safe_exec_command(cmd)
+                if result and result.isdigit():
+                    cores = int(result)
+                    if 1 <= cores <= 256:
+                        info['cpu_cores'] = cores
+                        info['cpu'] = f"{cores} cores"
+                        break
+            
+            # Определяем память (логика из вашего скрипта)
+            for cmd in memory_commands:
+                result = safe_exec_command(cmd)
+                if result:
+                    if 'G' in result or 'M' in result:
+                        info['memory'] = result.split()[0]
+                        info['memory_total'] = result.split()[0]
+                        break
+                    elif result.isdigit():
+                        kb = int(result)
+                        if kb > 1000000:
+                            gb = round(kb / 1024 / 1024, 1)
+                            info['memory'] = f"{gb}G"
+                            info['memory_total'] = f"{gb}G"
+                            info['total_memory_mb'] = int(gb * 1024)
+                            break
+            
+            # Определяем диск (логика из вашего скрипта)
+            for cmd in disk_commands:
+                result = safe_exec_command(cmd)
+                if result and any(unit in result for unit in ['G', 'T', 'M']):
+                    info['disk'] = result
+                    # Пытаемся извлечь процент использования
+                    parts = result.split()
+                    for part in parts:
+                        if '%' in part:
+                            try:
+                                usage = int(part.replace('%', ''))
+                                info['disk_usage_percent'] = usage
+                            except:
+                                pass
+                    break
+            
+            # Выполняем дополнительные команды
+            for key, command in additional_commands.items():
+                try:
+                    result = safe_exec_command(command, timeout=5)
+                    if result and result != "Unknown":
+                        info[key] = result
+                except:
                     continue
-            
-            client.close()
-            
-            # Парсим дополнительную информацию
-            self._parse_system_info(info)
             
         except Exception as e:
             info['error'] = f"Ошибка получения системной информации: {str(e)}"
+        finally:
+            if client:
+                try:
+                    client.close()
+                except:
+                    pass
         
         return info
     
-    def _parse_system_info(self, info: Dict):
-        """Парсинг системной информации"""
-        try:
-            # Парсим память
-            if info.get('memory'):
-                memory_parts = info['memory'].split()
-                if len(memory_parts) >= 3 and memory_parts[0] == 'Mem:':
-                    try:
-                        info['total_memory_mb'] = int(memory_parts[1])
-                        info['used_memory_mb'] = int(memory_parts[2])
-                    except (ValueError, IndexError):
-                        pass
-            
-            # Парсим использование диска
-            if info.get('disk'):
-                disk_parts = info['disk'].split()
-                if len(disk_parts) >= 5:
-                    try:
-                        usage_str = disk_parts[4].replace('%', '')
-                        info['disk_usage_percent'] = int(usage_str)
-                    except (ValueError, IndexError):
-                        pass
-            
-            # Парсим количество ядер CPU
-            if info.get('cpu_cores'):
-                try:
-                    info['cpu_cores'] = int(info['cpu_cores'])
-                except ValueError:
-                    info['cpu_cores'] = 1
-                    
-        except Exception as parse_error:
-            print(f"Ошибка парсинга системной информации: {parse_error}")
-    
     def validate_servers_batch(self, servers: List[Tuple], callback: Optional[Callable] = None) -> List[Dict]:
         """
-        Валидация серверов в пакетном режиме с улучшенной обработкой ошибок
+        Валидация серверов в пакетном режиме (адаптировано под логику вашего скрипта)
         
         Args:
             servers: список серверов для валидации (server_id, host, port, username, password)
@@ -320,7 +360,7 @@ class SSHManager:
             start_time = time.time()
             
             try:
-                # Проверяем подключение
+                # Проверяем подключение (используя улучшенную логику)
                 is_valid, error = self.test_connection(host, port, username, password)
                 
                 result = {
@@ -404,7 +444,7 @@ class SSHManager:
     
     def execute_commands_batch(self, servers: List[Tuple], command: str, callback: Optional[Callable] = None) -> List[Dict]:
         """
-        Выполнение команды на нескольких серверах с улучшенной обработкой ошибок
+        Выполнение команды на нескольких серверах
         
         Args:
             servers: список серверов (server_id, host, port, username, password)
