@@ -1,0 +1,600 @@
+{% extends "base.html" %}
+
+{% block title %}Серверы - SSH Server Manager{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2"><i class="fas fa-list me-2"></i>Управление серверами</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <button type="button" class="btn btn-gradient" onclick="validateSelectedServers()"
+                    data-bs-toggle="tooltip" data-bs-placement="bottom"
+                    title="Проверить доступность выбранных серверов и обновить их системную информацию">
+                <i class="fas fa-sync-alt me-1"></i> Обновить выбранные
+            </button>
+            <button type="button" class="btn btn-outline-primary" onclick="showCommandModal()"
+                    data-bs-toggle="tooltip" data-bs-placement="bottom"
+                    title="Выполнить произвольную команду на выбранных серверах">
+                <i class="fas fa-terminal me-1"></i> Выполнить команду
+            </button>
+            <button type="button" class="btn btn-outline-info" onclick="showSystemInfoModal()"
+                    data-bs-toggle="tooltip" data-bs-placement="bottom"
+                    title="Получить системную информацию (ОС, CPU, память, диски) для выбранных серверов">
+                <i class="fas fa-microchip me-1"></i> Получить характеристики
+            </button>
+            <button type="button" class="btn btn-outline-danger" onclick="deleteSelectedServers()"
+                    data-bs-toggle="tooltip" data-bs-placement="bottom"
+                    title="Удалить выбранные серверы из базы данных (необратимо)">
+                <i class="fas fa-trash me-1"></i> Удалить выбранные
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Фильтры и поиск -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-3">
+            <div class="col-md-2">
+                <label for="status" class="form-label" 
+                       data-bs-toggle="tooltip" data-bs-placement="top"
+                       title="Фильтр по статусу доступности серверов">Статус</label>
+                <select name="status" id="status" class="form-select form-select-sm">
+                    <option value="all" {% if current_status == 'all' %}selected{% endif %}>Все</option>
+                    <option value="valid" {% if current_status == 'valid' %}selected{% endif %}>Доступные</option>
+                    <option value="invalid" {% if current_status == 'invalid' %}selected{% endif %}>Недоступные</option>
+                    <option value="unchecked" {% if current_status == 'unchecked' %}selected{% endif %}>Не проверены</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="country" class="form-label"
+                       data-bs-toggle="tooltip" data-bs-placement="top"
+                       title="Фильтр по географическому расположению серверов">Страна</label>
+                <select name="country" id="country" class="form-select form-select-sm">
+                    <option value="all">Все страны</option>
+                    {% for country in countries %}
+                        <option value="{{ country }}" {% if current_country == country %}selected{% endif %}>{{ country }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="os" class="form-label"
+                       data-bs-toggle="tooltip" data-bs-placement="top"
+                       title="Фильтр по операционной системе серверов">ОС</label>
+                <select name="os" id="os" class="form-select form-select-sm">
+                    <option value="all">Все ОС</option>
+                    {% for os_name in os_list %}
+                        <option value="{{ os_name }}" {% if current_os == os_name %}selected{% endif %}>{{ os_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="sort" class="form-label"
+                       data-bs-toggle="tooltip" data-bs-placement="top"
+                       title="Выберите поле для сортировки списка серверов">Сортировка</label>
+                <select name="sort" id="sort" class="form-select form-select-sm">
+                    <option value="host" {% if current_sort == 'host' %}selected{% endif %}>По хосту</option>
+                    <option value="country" {% if current_sort == 'country' %}selected{% endif %}>По стране</option>
+                    <option value="last_check" {% if current_sort == 'last_check' %}selected{% endif %}>По дате проверки</option>
+                    <option value="total_memory_mb" {% if current_sort == 'total_memory_mb' %}selected{% endif %}>По памяти</option>
+                    <option value="cpu_cores" {% if current_sort == 'cpu_cores' %}selected{% endif %}>По CPU</option>
+                    <option value="disk_usage_percent" {% if current_sort == 'disk_usage_percent' %}selected{% endif %}>По диску</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="order" class="form-label"
+                       data-bs-toggle="tooltip" data-bs-placement="top"
+                       title="Порядок сортировки: по возрастанию или убыванию">Порядок</label>
+                <select name="order" id="order" class="form-select form-select-sm">
+                    <option value="asc" {% if current_order == 'asc' %}selected{% endif %}>По возрастанию</option>
+                    <option value="desc" {% if current_order == 'desc' %}selected{% endif %}>По убыванию</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="search" class="form-label"
+                       data-bs-toggle="tooltip" data-bs-placement="top"
+                       title="Поиск серверов по имени хоста или IP адресу">Поиск</label>
+                <input type="text" name="search" id="search" class="form-control form-control-sm" placeholder="Хост..." value="{{ current_search }}">
+            </div>
+            <div class="col-12">
+                <button type="submit" class="btn btn-primary btn-sm"
+                        data-bs-toggle="tooltip" data-bs-placement="top"
+                        title="Применить выбранные фильтры к списку серверов">
+                    <i class="fas fa-search me-1"></i> Применить фильтры
+                </button>
+                <a href="{{ url_for('servers') }}" class="btn btn-outline-secondary btn-sm ms-2"
+                   data-bs-toggle="tooltip" data-bs-placement="top"
+                   title="Сбросить все фильтры и показать все серверы">
+                    <i class="fas fa-times me-1"></i> Сбросить
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Информация и пагинация -->
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <span class="text-muted">
+            Показано {{ servers.items|length }} из {{ servers.total }} серверов
+            {% if servers.pages > 1 %}
+                (страница {{ servers.page }} из {{ servers.pages }})
+            {% endif %}
+        </span>
+    </div>
+    <div>
+        <div class="btn-group btn-group-sm">
+            <a href="{{ url_for('servers', per_page=25) }}" class="btn btn-outline-secondary {% if request.args.get('per_page', '50') == '25' %}active{% endif %}">25</a>
+            <a href="{{ url_for('servers', per_page=50) }}" class="btn btn-outline-secondary {% if request.args.get('per_page', '50') == '50' %}active{% endif %}">50</a>
+            <a href="{{ url_for('servers', per_page=100) }}" class="btn btn-outline-secondary {% if request.args.get('per_page', '50') == '100' %}active{% endif %}">100</a>
+        </div>
+    </div>
+</div>
+
+<!-- Таблица серверов -->
+{% if servers.items %}
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th width="40">
+                            <input type="checkbox" id="selectAll" onchange="toggleAllServers()" class="form-check-input"
+                                   data-bs-toggle="tooltip" data-bs-placement="top"
+                                   title="Выбрать или отменить выбор всех серверов на странице">
+                        </th>
+                        <th>Сервер</th>
+                        <th>Местоположение</th>
+                        <th>Статус</th>
+                        <th>Последняя проверка</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for server in servers.items %}
+                    <tr class="server-item">
+                        <td>
+                            <input type="checkbox" name="server_ids" value="{{ server.id }}" class="form-check-input">
+                        </td>
+                        <td>
+                            <div>
+                                <strong>{{ server.host }}</strong>
+                                <small class="text-muted d-block">{{ server.username }}@{{ server.host }}:{{ server.port }}</small>
+                            </div>
+                        </td>
+                        <td>
+                            {% if server.country %}
+                                <div>
+                                    <span class="badge bg-info">{{ server.country }}</span>
+                                    {% if server.city %}
+                                        <br><small class="text-muted">{{ server.city }}</small>
+                                    {% endif %}
+                                </div>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if server.is_valid is none %}
+                                <span class="badge bg-warning">
+                                    <i class="fas fa-question-circle me-1"></i>Не проверен
+                                </span>
+                            {% elif server.is_valid %}
+                                <span class="badge bg-success">
+                                    <i class="fas fa-check-circle me-1"></i>Доступен
+                                </span>
+                            {% else %}
+                                <span class="badge bg-danger">
+                                    <i class="fas fa-times-circle me-1"></i>Недоступен
+                                </span>
+                                {% if server.last_error %}
+                                    <br><small class="text-danger">{{ server.last_error[:50] }}{% if server.last_error|length > 50 %}...{% endif %}</small>
+                                {% endif %}
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if server.last_check %}
+                                <small class="text-muted">{{ server.last_check.strftime('%d.%m.%Y %H:%M') }}</small>
+                            {% else %}
+                                <small class="text-muted">Никогда</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-primary" onclick="validateServers([{{ server.id }}])" title="Проверить">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                                <button class="btn btn-outline-success" onclick="executeCommandForServer({{ server.id }})" title="Выполнить команду">
+                                    <i class="fas fa-terminal"></i>
+                                </button>
+                                <a href="{{ url_for('server_detail', server_id=server.id) }}" class="btn btn-outline-info" title="Подробности">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <button class="btn btn-outline-danger" onclick="deleteServer({{ server.id }})" title="Удалить">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Пагинация -->
+{% if servers.pages > 1 %}
+<nav aria-label="Навигация по страницам" class="mt-4">
+    <ul class="pagination justify-content-center">
+        {% if servers.has_prev %}
+            <li class="page-item">
+                <a class="page-link" href="{{ url_for('servers', page=servers.prev_num, **request.args) }}">
+                    <i class="fas fa-chevron-left"></i> Предыдущая
+                </a>
+            </li>
+        {% endif %}
+        
+        {% for page_num in servers.iter_pages() %}
+            {% if page_num %}
+                {% if page_num != servers.page %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('servers', page=page_num, **request.args) }}">{{ page_num }}</a>
+                    </li>
+                {% else %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ page_num }}</span>
+                    </li>
+                {% endif %}
+            {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">...</span>
+                </li>
+            {% endif %}
+        {% endfor %}
+        
+        {% if servers.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="{{ url_for('servers', page=servers.next_num, **request.args) }}">
+                    Следующая <i class="fas fa-chevron-right"></i>
+                </a>
+            </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+
+{% else %}
+<div class="card">
+    <div class="card-body text-center py-5">
+        <i class="fas fa-search fa-3x text-muted mb-3"></i>
+        <h5 class="text-muted">Серверы не найдены</h5>
+        <p class="text-muted">Попробуйте изменить фильтры поиска или загрузить новые серверы</p>
+        <a href="{{ url_for('upload_servers') }}" class="btn btn-primary">
+            <i class="fas fa-upload me-2"></i>Загрузить серверы
+        </a>
+    </div>
+</div>
+{% endif %}
+
+<!-- Модальное окно для выполнения команды -->
+<div class="modal fade" id="commandModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-terminal me-2"></i>Выполнить команду
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="commandForm">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="commandThreads" class="form-label">
+                                <i class="fas fa-layer-group me-1"></i>Потоков
+                            </label>
+                            <input type="range" class="form-range" min="1" max="50" value="10" id="commandThreads">
+                            <div class="text-center">
+                                <span class="badge bg-primary" id="commandThreadsValue">10</span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="commandTimeout" class="form-label">
+                                <i class="fas fa-clock me-1"></i>Таймаут (сек)
+                            </label>
+                            <input type="range" class="form-range" min="5" max="60" value="10" id="commandTimeout">
+                            <div class="text-center">
+                                <span class="badge bg-info" id="commandTimeoutValue">10</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="commandText" class="form-label">Команда</label>
+                        <textarea class="form-control" id="commandText" rows="3" placeholder="Введите команду для выполнения..."></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Предустановленные команды</label>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="d-grid gap-1">
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setCommand('uname -a')">Информация о системе</button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setCommand('free -h')">Использование памяти</button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setCommand('df -h')">Использование диска</button>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="d-grid gap-1">
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setCommand('ps aux | head -10')">Процессы</button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setCommand('uptime')">Время работы</button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setCommand('whoami')">Текущий пользователь</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" onclick="executeModalCommand()">
+                    <i class="fas fa-play me-1"></i>Выполнить
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно для получения системной информации -->
+<div class="modal fade" id="systemInfoModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-microchip me-2"></i>Получить системную информацию
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="sysInfoThreads" class="form-label">
+                            <i class="fas fa-layer-group me-1"></i>Потоков
+                        </label>
+                        <input type="range" class="form-range" min="1" max="30" value="10" id="sysInfoThreads">
+                        <div class="text-center">
+                            <span class="badge bg-primary" id="sysInfoThreadsValue">10</span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="sysInfoTimeout" class="form-label">
+                            <i class="fas fa-clock me-1"></i>Таймаут (сек)
+                        </label>
+                        <input type="range" class="form-range" min="10" max="60" value="15" id="sysInfoTimeout">
+                        <div class="text-center">
+                            <span class="badge bg-info" id="sysInfoTimeoutValue">15</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="alert alert-info">
+                    <h6 class="alert-heading"><i class="fas fa-info-circle me-1"></i>Что будет получено:</h6>
+                    <ul class="mb-0">
+                        <li>Информация об операционной системе</li>
+                        <li>Данные о процессоре и количестве ядер</li>
+                        <li>Информация о памяти (общая/используемая)</li>
+                        <li>Данные о дисках и их использовании</li>
+                        <li>Время работы системы</li>
+                        <li>Архитектура и версия ядра</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-success" onclick="executeSystemInfoModal()">
+                    <i class="fas fa-download me-1"></i>Получить информацию
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let selectedServerForCommand = null;
+
+    function validateSelectedServers() {
+        const selected = getSelectedServers();
+        if (selected.length === 0) {
+            alert('Выберите серверы для проверки');
+            return;
+        }
+        validateServers(selected);
+    }
+
+    function deleteSelectedServers() {
+        const selected = getSelectedServers();
+        if (selected.length === 0) {
+            alert('Выберите серверы для удаления');
+            return;
+        }
+        
+        if (confirm(`Вы уверены, что хотите удалить ${selected.length} серверов?`)) {
+            // Реализация удаления нескольких серверов
+            Promise.all(selected.map(id => 
+                fetch(`/delete_server/${id}`, {method: 'POST'})
+            )).then(() => {
+                location.reload();
+            });
+        }
+    }
+
+    function deleteServer(serverId) {
+        if (confirm('Вы уверены, что хотите удалить этот сервер?')) {
+            fetch(`/delete_server/${serverId}`, {
+                method: 'POST'
+            }).then(response => {
+                if (response.ok) {
+                    location.reload();
+                } else {
+                    alert('Ошибка при удалении сервера');
+                }
+            });
+        }
+    }
+
+    function executeCommandForServer(serverId) {
+        selectedServerForCommand = serverId;
+        showCommandModal();
+    }
+
+    function showCommandModal() {
+        // Устанавливаем значения из глобальных настроек
+        document.getElementById('commandThreads').value = currentSettings.threads;
+        document.getElementById('commandTimeout').value = currentSettings.timeout;
+        updateCommandModalValues();
+        
+        new bootstrap.Modal(document.getElementById('commandModal')).show();
+    }
+
+    function showSystemInfoModal() {
+        // Устанавливаем значения из глобальных настроек
+        document.getElementById('sysInfoThreads').value = Math.min(currentSettings.threads, 30);
+        document.getElementById('sysInfoTimeout').value = Math.max(currentSettings.timeout, 15);
+        updateSystemInfoModalValues();
+        
+        new bootstrap.Modal(document.getElementById('systemInfoModal')).show();
+    }
+
+    function setCommand(command) {
+        document.getElementById('commandText').value = command;
+    }
+
+    function executeModalCommand() {
+        const command = document.getElementById('commandText').value.trim();
+        if (!command) {
+            alert('Введите команду');
+            return;
+        }
+
+        const serverIds = selectedServerForCommand ? [selectedServerForCommand] : getSelectedServers();
+        if (serverIds.length === 0) {
+            alert('Выберите серверы');
+            return;
+        }
+
+        const threads = parseInt(document.getElementById('commandThreads').value);
+        const timeout = parseInt(document.getElementById('commandTimeout').value);
+
+        bootstrap.Modal.getInstance(document.getElementById('commandModal')).hide();
+        
+        if (currentOperation) {
+            alert('Уже выполняется операция');
+            return;
+        }
+
+        currentOperation = 'command';
+        showProgress('Выполнение команды...');
+
+        fetch('/execute_command', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                command: command,
+                server_ids: serverIds,
+                threads: threads,
+                timeout: timeout
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                progressInterval = setInterval(checkCommandStatus, 1000);
+            } else {
+                alert('Ошибка: ' + data.error);
+                hideProgress();
+                currentOperation = null;
+            }
+        })
+        .catch(error => {
+            console.error('Ошибка:', error);
+            hideProgress();
+            currentOperation = null;
+        });
+    }
+
+    function executeSystemInfoModal() {
+        const selected = getSelectedServers();
+        if (selected.length === 0) {
+            alert('Выберите серверы для получения системной информации');
+            return;
+        }
+        
+        const threads = parseInt(document.getElementById('sysInfoThreads').value);
+        const timeout = parseInt(document.getElementById('sysInfoTimeout').value);
+        
+        bootstrap.Modal.getInstance(document.getElementById('systemInfoModal')).hide();
+        
+        if (currentOperation) {
+            alert('Уже выполняется операция');
+            return;
+        }
+
+        currentOperation = 'command';
+        showProgress('Получение системной информации...');
+
+        fetch('/update_system_info', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                server_ids: selected,
+                threads: threads,
+                timeout: timeout
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                progressInterval = setInterval(checkCommandStatus, 1000);
+            } else {
+                alert('Ошибка: ' + data.error);
+                hideProgress();
+                currentOperation = null;
+            }
+        })
+        .catch(error => {
+            console.error('Ошибка:', error);
+            hideProgress();
+            currentOperation = null;
+        });
+    }
+
+    function updateCommandModalValues() {
+        document.getElementById('commandThreadsValue').textContent = document.getElementById('commandThreads').value;
+        document.getElementById('commandTimeoutValue').textContent = document.getElementById('commandTimeout').value;
+    }
+
+    function updateSystemInfoModalValues() {
+        document.getElementById('sysInfoThreadsValue').textContent = document.getElementById('sysInfoThreads').value;
+        document.getElementById('sysInfoTimeoutValue').textContent = document.getElementById('sysInfoTimeout').value;
+    }
+
+    // Обработчики событий
+    document.addEventListener('DOMContentLoaded', function() {
+        // Обработчики для слайдеров в модальных окнах
+        document.getElementById('commandThreads').addEventListener('input', updateCommandModalValues);
+        document.getElementById('commandTimeout').addEventListener('input', updateCommandModalValues);
+        document.getElementById('sysInfoThreads').addEventListener('input', updateSystemInfoModalValues);
+        document.getElementById('sysInfoTimeout').addEventListener('input', updateSystemInfoModalValues);
+    });
+
+    // Сброс выбора сервера при закрытии модального окна
+    document.getElementById('commandModal').addEventListener('hidden.bs.modal', function() {
+        selectedServerForCommand = null;
+        document.getElementById('commandText').value = '';
+    });
+</script>
+{% endblock %}

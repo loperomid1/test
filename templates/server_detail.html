@@ -1,0 +1,500 @@
+{% extends "base.html" %}
+
+{% block title %}{{ server.host }} - SSH Server Manager{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">
+        <i class="fas fa-server me-2"></i>{{ server.host }}
+        {% if server.is_valid is not none %}
+            {% if server.is_valid %}
+                <span class="badge bg-success ms-2">Доступен</span>
+            {% else %}
+                <span class="badge bg-danger ms-2">Недоступен</span>
+            {% endif %}
+        {% else %}
+            <span class="badge bg-warning ms-2">Не проверен</span>
+        {% endif %}
+    </h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <button type="button" class="btn btn-gradient" onclick="validateServers([{{ server.id }}])">
+                <i class="fas fa-check-circle me-1"></i> Проверить
+            </button>
+            <button type="button" class="btn btn-outline-primary" onclick="showCommandModal()">
+                <i class="fas fa-terminal me-1"></i> Команда
+            </button>
+            <button type="button" class="btn btn-outline-info" onclick="getSystemInfo()">
+                <i class="fas fa-info-circle me-1"></i> Система
+            </button>
+        </div>
+        <div class="btn-group">
+            <a href="{{ url_for('servers') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i> Назад
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Основная информация -->
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0"><i class="fas fa-info-circle me-2"></i>Основная информация</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <table class="table table-borderless">
+                            <tr>
+                                <td><strong>Хост:</strong></td>
+                                <td>{{ server.host }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Порт:</strong></td>
+                                <td>{{ server.port }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Пользователь:</strong></td>
+                                <td>{{ server.username }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Статус:</strong></td>
+                                <td>
+                                    {% if server.is_valid is none %}
+                                        <span class="badge bg-warning">Не проверен</span>
+                                    {% elif server.is_valid %}
+                                        <span class="badge bg-success">Доступен</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">Недоступен</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <table class="table table-borderless">
+                            <tr>
+                                <td><strong>Последняя проверка:</strong></td>
+                                <td>
+                                    {% if server.last_check %}
+                                        {{ server.last_check.strftime('%d.%m.%Y %H:%M:%S') }}
+                                    {% else %}
+                                        <span class="text-muted">Никогда</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>Добавлен:</strong></td>
+                                <td>{{ server.created_at.strftime('%d.%m.%Y %H:%M:%S') }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Обновлен:</strong></td>
+                                <td>{{ server.updated_at.strftime('%d.%m.%Y %H:%M:%S') }}</td>
+                            </tr>
+                            {% if server.tags %}
+                            <tr>
+                                <td><strong>Теги:</strong></td>
+                                <td>
+                                    {% for tag in server.tags.split(',') %}
+                                        <span class="badge bg-secondary me-1">{{ tag.strip() }}</span>
+                                    {% endfor %}
+                                </td>
+                            </tr>
+                            {% endif %}
+                        </table>
+                    </div>
+                </div>
+                
+                {% if server.last_error %}
+                <div class="alert alert-danger mt-3">
+                    <h6 class="alert-heading"><i class="fas fa-exclamation-triangle me-1"></i>Последняя ошибка</h6>
+                    <p class="mb-0">{{ server.last_error }}</p>
+                </div>
+                {% endif %}
+                
+                {% if server.notes %}
+                <div class="mt-3">
+                    <h6>Заметки</h6>
+                    <p class="text-muted">{{ server.notes }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Системная информация -->
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0"><i class="fas fa-microchip me-2"></i>Системная информация</h5>
+                <button class="btn btn-sm btn-outline-primary" onclick="getSystemInfo()">
+                    <i class="fas fa-sync-alt me-1"></i>Обновить
+                </button>
+            </div>
+            <div class="card-body" id="systemInfo">
+                {% if server.os_info or server.cpu_info or server.memory_info or server.disk_info %}
+                    <div class="row">
+                        {% if server.os_info %}
+                        <div class="col-md-6 mb-3">
+                            <h6><i class="fas fa-desktop me-1"></i>Операционная система</h6>
+                            <pre class="bg-light p-2 rounded small">{{ server.os_info }}</pre>
+                        </div>
+                        {% endif %}
+                        
+                        {% if server.cpu_info %}
+                        <div class="col-md-6 mb-3">
+                            <h6><i class="fas fa-microchip me-1"></i>Процессор</h6>
+                            <pre class="bg-light p-2 rounded small">{{ server.cpu_info }}</pre>
+                        </div>
+                        {% endif %}
+                        
+                        {% if server.memory_info %}
+                        <div class="col-md-6 mb-3">
+                            <h6><i class="fas fa-memory me-1"></i>Память</h6>
+                            <pre class="bg-light p-2 rounded small">{{ server.memory_info }}</pre>
+                        </div>
+                        {% endif %}
+                        
+                        {% if server.disk_info %}
+                        <div class="col-md-6 mb-3">
+                            <h6><i class="fas fa-hdd me-1"></i>Диски</h6>
+                            <pre class="bg-light p-2 rounded small">{{ server.disk_info }}</pre>
+                        </div>
+                        {% endif %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-info-circle fa-2x text-muted mb-2"></i>
+                        <p class="text-muted">Системная информация не получена</p>
+                        <button class="btn btn-primary" onclick="getSystemInfo()">
+                            <i class="fas fa-download me-1"></i>Получить информацию
+                        </button>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Боковая панель -->
+    <div class="col-md-4">
+        <!-- Геолокация -->
+        {% if server.latitude and server.longitude %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0"><i class="fas fa-map-marker-alt me-2"></i>Местоположение</h5>
+            </div>
+            <div class="card-body">
+                <div class="text-center mb-3">
+                    {% if server.country %}
+                        <h6>{{ server.country }}</h6>
+                    {% endif %}
+                    {% if server.city %}
+                        <p class="text-muted">{{ server.city }}</p>
+                    {% endif %}
+                </div>
+                
+                <div id="miniMap" style="height: 200px; border-radius: 0.375rem;"></div>
+                
+                <div class="mt-3">
+                    <small class="text-muted">
+                        <strong>Координаты:</strong><br>
+                        {{ "%.4f"|format(server.latitude) }}, {{ "%.4f"|format(server.longitude) }}
+                    </small>
+                </div>
+                
+                <div class="d-grid mt-3">
+                    <a href="{{ url_for('map_view') }}#server-{{ server.id }}" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-map me-1"></i>Показать на карте
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Быстрые действия -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0"><i class="fas fa-bolt me-2"></i>Быстрые действия</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <button class="btn btn-outline-primary" onclick="validateServers([{{ server.id }}])">
+                        <i class="fas fa-check-circle me-1"></i>Проверить доступность
+                    </button>
+                    <button class="btn btn-outline-success" onclick="executeQuickCommand('uptime')">
+                        <i class="fas fa-clock me-1"></i>Время работы
+                    </button>
+                    <button class="btn btn-outline-info" onclick="executeQuickCommand('free -h')">
+                        <i class="fas fa-memory me-1"></i>Использование памяти
+                    </button>
+                    <button class="btn btn-outline-warning" onclick="executeQuickCommand('df -h')">
+                        <i class="fas fa-hdd me-1"></i>Использование диска
+                    </button>
+                    <button class="btn btn-outline-secondary" onclick="executeQuickCommand('ps aux | head -10')">
+                        <i class="fas fa-list me-1"></i>Процессы
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Управление -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0"><i class="fas fa-cog me-2"></i>Управление</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <button class="btn btn-outline-primary" onclick="editServer()">
+                        <i class="fas fa-edit me-1"></i>Редактировать
+                    </button>
+                    <button class="btn btn-outline-danger" onclick="deleteServer()">
+                        <i class="fas fa-trash me-1"></i>Удалить сервер
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно команды -->
+<div class="modal fade" id="commandModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Выполнить команду</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="resultContent"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Инициализация мини-карты
+    {% if server.latitude and server.longitude %}
+    document.addEventListener('DOMContentLoaded', function() {
+        const miniMap = L.map('miniMap', {
+            zoomControl: false,
+            scrollWheelZoom: false,
+            doubleClickZoom: false,
+            dragging: false
+        }).setView([{{ server.latitude }}, {{ server.longitude }}], 8);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(miniMap);
+
+        // Добавляем маркер
+        const marker = L.marker([{{ server.latitude }}, {{ server.longitude }}]).addTo(miniMap);
+        marker.bindPopup('{{ server.host }}').openPopup();
+    });
+    {% endif %}
+
+    // Показать модальное окно команды
+    function showCommandModal() {
+        new bootstrap.Modal(document.getElementById('commandModal')).show();
+    }
+
+    // Выполнить команду из модального окна
+    function executeModalCommand() {
+        const command = document.getElementById('commandInput').value.trim();
+        if (!command) {
+            alert('Введите команду');
+            return;
+        }
+
+        bootstrap.Modal.getInstance(document.getElementById('commandModal')).hide();
+        executeQuickCommand(command);
+    }
+
+    // Выполнить быструю команду
+    function executeQuickCommand(command) {
+        if (currentOperation) {
+            alert('Уже выполняется операция');
+            return;
+        }
+
+        currentOperation = 'command';
+        showProgress('Выполнение команды...');
+
+        fetch('/execute_command', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                command: command,
+                server_ids: [{{ server.id }}]
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Ждем результат
+                const checkResult = () => {
+                    fetch('/command_status')
+                    .then(response => response.json())
+                    .then(statusData => {
+                        if (!statusData.running) {
+                            hideProgress();
+                            currentOperation = null;
+                            
+                            if (statusData.results && statusData.results.length > 0) {
+                                showCommandResult(statusData.results[0], command);
+                            }
+                        } else {
+                            setTimeout(checkResult, 1000);
+                        }
+                    });
+                };
+                setTimeout(checkResult, 1000);
+            } else {
+                alert('Ошибка: ' + data.error);
+                hideProgress();
+                currentOperation = null;
+            }
+        })
+        .catch(error => {
+            console.error('Ошибка:', error);
+            hideProgress();
+            currentOperation = null;
+        });
+    }
+
+    // Показать результат команды
+    function showCommandResult(result, command) {
+        const content = `
+            <div class="mb-3">
+                <h6>Команда: <code>${command}</code></h6>
+                <div class="mt-2">
+                    <strong>Сервер:</strong> ${result.host}
+                    ${result.success ? '<span class="badge bg-success ms-2">Успех</span>' : '<span class="badge bg-danger ms-2">Ошибка</span>'}
+                </div>
+            </div>
+            
+            ${result.output ? `
+                <div class="mb-3">
+                    <strong>Вывод:</strong>
+                    <pre class="bg-light p-3 rounded mt-2" style="max-height: 300px; overflow-y: auto;">${result.output}</pre>
+                </div>
+            ` : ''}
+            
+            ${result.error ? `
+                <div class="mb-3">
+                    <strong>Ошибка:</strong>
+                    <pre class="bg-danger text-white p-3 rounded mt-2">${result.error}</pre>
+                </div>
+            ` : ''}
+        `;
+
+        document.getElementById('resultContent').innerHTML = content;
+        new bootstrap.Modal(document.getElementById('resultModal')).show();
+    }
+
+    // Получить системную информацию
+    function getSystemInfo() {
+        if (currentOperation) {
+            alert('Уже выполняется операция');
+            return;
+        }
+
+        currentOperation = 'command';
+        showProgress('Получение системной информации...');
+
+        const commands = [
+            'uname -a',
+            'cat /proc/cpuinfo | grep "model name" | head -1',
+            'free -h',
+            'df -h | head -5'
+        ];
+
+        Promise.all(commands.map(cmd => 
+            fetch('/execute_command', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    command: cmd,
+                    server_ids: [{{ server.id }}]
+                })
+            })
+        ))
+        .then(() => {
+            setTimeout(() => {
+                hideProgress();
+                currentOperation = null;
+                location.reload();
+            }, 3000);
+        })
+        .catch(error => {
+            console.error('Ошибка:', error);
+            hideProgress();
+            currentOperation = null;
+        });
+    }
+
+    // Редактировать сервер
+    function editServer() {
+        // Простая форма редактирования
+        const notes = prompt('Заметки о сервере:', '{{ server.notes or "" }}');
+        if (notes !== null) {
+            const tags = prompt('Теги (через запятую):', '{{ server.tags or "" }}');
+            if (tags !== null) {
+                // Здесь можно отправить AJAX запрос для обновления
+                alert('Функция редактирования будет добавлена в следующих версиях');
+            }
+        }
+    }
+
+    // Удалить сервер
+    function deleteServer() {
+        if (confirm('Вы уверены, что хотите удалить этот сервер? Это действие нельзя отменить.')) {
+            fetch('/delete_server/{{ server.id }}', {
+                method: 'POST'
+            })
+            .then(response => {
+                if (response.ok) {
+                    window.location.href = '{{ url_for("servers") }}';
+                } else {
+                    alert('Ошибка при удалении сервера');
+                }
+            })
+            .catch(error => {
+                console.error('Ошибка:', error);
+                alert('Ошибка при удалении сервера');
+            });
+        }
+    }
+
+    // Очистка полей модального окна при закрытии
+    document.getElementById('commandModal').addEventListener('hidden.bs.modal', function() {
+        document.getElementById('commandInput').value = '';
+    });
+</script>
+{% endblock %}"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="commandInput" class="form-label">Команда</label>
+                    <textarea class="form-control" id="commandInput" rows="3" placeholder="Введите команду..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" onclick="executeModalCommand()">Выполнить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно результатов -->
+<div class="modal fade" id="resultModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Результат выполнения</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal

@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+
+{% block title %}Карта серверов - SSH Server Manager{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2"><i class="fas fa-map me-2"></i>Карта серверов</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <button type="button" class="btn btn-outline-primary" onclick="refreshMap()">
+                <i class="fas fa-sync-alt me-1"></i> Обновить
+            </button>
+            <button type="button" class="btn btn-outline-success" onclick="fitAllMarkers()">
+                <i class="fas fa-expand me-1"></i> Показать все
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Статистика -->
+<div class="card mb-3">
+    <div class="card-body py-2">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <div class="d-flex align-items-center">
+                    <span class="me-3"><strong>Легенда:</strong></span>
+                    <span class="me-3">
+                        <i class="fas fa-circle text-success me-1"></i>Доступные
+                    </span>
+                    <span class="me-3">
+                        <i class="fas fa-circle text-danger me-1"></i>Недоступные
+                    </span>
+                    <span class="me-3">
+                        <i class="fas fa-circle text-warning me-1"></i>Не проверены
+                    </span>
+                </div>
+            </div>
+            <div class="col-md-4 text-end">
+                <span class="text-muted">Серверов на карте: <strong>{{ servers|length }}</strong></span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Карта или заглушка -->
+{% if servers|length > 0 %}
+<div class="card">
+    <div class="card-body p-0">
+        <div id="map" style="height: 70vh; min-height: 500px;"></div>
+    </div>
+</div>
+{% else %}
+<div class="card">
+    <div class="card-body text-center py-5">
+        <i class="fas fa-map fa-3x text-muted mb-3"></i>
+        <h5 class="text-muted">Нет серверов с геоданными</h5>
+        <p class="text-muted">Загрузите серверы и получите их геолокацию для отображения на карте</p>
+        <a href="{{ url_for('upload_servers') }}" class="btn btn-primary">
+            <i class="fas fa-upload me-2"></i>Загрузить серверы
+        </a>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if servers|length > 0 %}
+<script>
+    let map;
+    let markers = [];
+
+    // Данные серверов
+    const serversData = {{ servers | tojson | safe }};
+
+    // Инициализация карты
+    function initMap() {
+        map = L.map('map').setView([40.0, 0.0], 2);
+
+        // Добавляем тайлы карты
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 18
+        }).addTo(map);
+
+        // Добавляем маркеры
+        addMarkers();
+
+        // Подгоняем карту под все маркеры
+        if (markers.length > 0) {
+            fitAllMarkers();
+        }
+    }
+
+    // Добавление маркеров на карту
+    function addMarkers() {
+        serversData.forEach(server => {
+            if (server.latitude && server.longitude) {
+                const marker = createMarker(server);
+                markers.push(marker);
+            }
+        });
+    }
+
+    // Создание маркера для сервера
+    function createMarker(server) {
+        let markerColor = 'gray';
+        
+        if (server.is_valid === true) {
+            markerColor = 'green';
+        } else if (server.is_valid === false) {
+            markerColor = 'red';
+        } else {
+            markerColor = 'orange';
+        }
+
+        // Создаем custom icon
+        const customIcon = L.divIcon({
+            className: 'custom-marker',
+            html: `<div style="
+                background-color: ${markerColor};
+                width: 20px;
+                height: 20px;
+                border-radius: 50%;
+                border: 2px solid white;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: white;
+                font-size: 10px;
+            "><i class="fas fa-server"></i></div>`,
+            iconSize: [24, 24],
+            iconAnchor: [12, 12],
+            popupAnchor: [0, -12]
+        });
+
+        const marker = L.marker([server.latitude, server.longitude], {
+            icon: customIcon
+        }).addTo(map);
+
+        // Создаем popup с информацией о сервере
+        const popupContent = `
+            <div class="server-popup">
+                <h6 class="mb-2"><strong>${server.host}</strong></h6>
+                <div class="mb-1"><small><strong>Порт:</strong> ${server.port}</small></div>
+                ${server.country ? `<div class="mb-1"><small><strong>Страна:</strong> ${server.country}</small></div>` : ''}
+                ${server.city ? `<div class="mb-1"><small><strong>Город:</strong> ${server.city}</small></div>` : ''}
+                <div class="mb-2">
+                    <small><strong>Статус:</strong></small>
+                    ${getStatusBadge(server.is_valid)}
+                </div>
+                <div class="d-grid gap-1">
+                    <button class="btn btn-sm btn-success" onclick="validateServers([${server.id}])">
+                        <i class="fas fa-check me-1"></i>Проверить
+                    </button>
+                </div>
+            </div>
+        `;
+
+        marker.bindPopup(popupContent, {
+            maxWidth: 250,
+            className: 'custom-popup'
+        });
+
+        return marker;
+    }
+
+    // Получение badge для статуса
+    function getStatusBadge(isValid) {
+        if (isValid === null) {
+            return '<span class="badge bg-warning">Не проверен</span>';
+        } else if (isValid) {
+            return '<span class="badge bg-success">Доступен</span>';
+        } else {
+            return '<span class="badge bg-danger">Недоступен</span>';
+        }
+    }
+
+    // Подгонка карты под все маркеры
+    function fitAllMarkers() {
+        if (markers.length > 0) {
+            const group = new L.featureGroup(markers);
+            map.fitBounds(group.getBounds().pad(0.1));
+        }
+    }
+
+    // Обновление карты
+    function refreshMap() {
+        location.reload();
+    }
+
+    // Инициализация при загрузке страницы
+    document.addEventListener('DOMContentLoaded', function() {
+        initMap();
+    });
+
+    // Добавляем стили для custom popup
+    const style = document.createElement('style');
+    style.textContent = `
+        .custom-popup .leaflet-popup-content {
+            margin: 8px 12px;
+            line-height: 1.4;
+        }
+        
+        .server-popup {
+            font-family: inherit;
+        }
+        
+        .server-popup h6 {
+            margin-bottom: 8px;
+            color: #333;
+        }
+        
+        .server-popup .btn {
+            font-size: 11px;
+        }
+        
+        .custom-marker {
+            background: none !important;
+            border: none !important;
+        }
+        
+        .leaflet-popup-content-wrapper {
+            border-radius: 8px;
+        }
+        
+        .leaflet-popup-tip {
+            background: white;
+        }
+    `;
+    document.head.appendChild(style);
+</script>
+{% endif %}
+{% endblock %}

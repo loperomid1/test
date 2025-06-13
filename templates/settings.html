@@ -1,0 +1,719 @@
+{% extends "base.html" %}
+
+{% block title %}Настройки - SSH Server Manager{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2"><i class="fas fa-cog me-2"></i>Настройки системы</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <button type="button" class="btn btn-outline-success" onclick="saveAllSettings()">
+                <i class="fas fa-save me-1"></i> Сохранить все
+            </button>
+            <button type="button" class="btn btn-outline-secondary" onclick="resetToDefaults()">
+                <i class="fas fa-undo me-1"></i> По умолчанию
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Настройки производительности -->
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-tachometer-alt me-2"></i>Производительность
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-4">
+                    <label for="defaultThreads" class="form-label">
+                        <i class="fas fa-layer-group me-1"></i>Потоков по умолчанию
+                        <small class="text-muted">(1-100)</small>
+                    </label>
+                    <input type="range" class="form-range" min="1" max="100" value="10" id="defaultThreads">
+                    <div class="d-flex justify-content-between">
+                        <small class="text-muted">1</small>
+                        <span class="badge bg-primary" id="defaultThreadsValue">10</span>
+                        <small class="text-muted">100</small>
+                    </div>
+                    <small class="form-text text-muted">
+                        Количество одновременных SSH подключений
+                    </small>
+                </div>
+                
+                <div class="mb-4">
+                    <label for="defaultTimeout" class="form-label">
+                        <i class="fas fa-clock me-1"></i>Таймаут по умолчанию
+                        <small class="text-muted">(5-60 сек)</small>
+                    </label>
+                    <input type="range" class="form-range" min="5" max="60" value="10" id="defaultTimeout">
+                    <div class="d-flex justify-content-between">
+                        <small class="text-muted">5с</small>
+                        <span class="badge bg-info" id="defaultTimeoutValue">10с</span>
+                        <small class="text-muted">60с</small>
+                    </div>
+                    <small class="form-text text-muted">
+                        Время ожидания SSH подключения
+                    </small>
+                </div>
+                
+                <div class="row">
+                    <div class="col-6">
+                        <div class="card border-success">
+                            <div class="card-body text-center p-3">
+                                <h6 class="card-title text-success mb-2">Стабильно</h6>
+                                <p class="card-text small mb-2">
+                                    10-20 потоков<br>
+                                    10-15 сек
+                                </p>
+                                <button type="button" class="btn btn-sm btn-success" onclick="setStable()">
+                                    Применить
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="card border-warning">
+                            <div class="card-body text-center p-3">
+                                <h6 class="card-title text-warning mb-2">Быстро</h6>
+                                <p class="card-text small mb-2">
+                                    50+ потоков<br>
+                                    5-8 сек
+                                </p>
+                                <button type="button" class="btn btn-sm btn-warning" onclick="setFast()">
+                                    Применить
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Настройки автоматизации -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-robot me-2"></i>Автоматизация
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="autoCheck" checked>
+                    <label class="form-check-label" for="autoCheck">
+                        Автоматическая проверка серверов
+                    </label>
+                    <small class="form-text text-muted d-block">
+                        Периодически проверять доступность серверов
+                    </small>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="autoCheckInterval" class="form-label">
+                        Интервал проверки (часы)
+                    </label>
+                    <select class="form-select" id="autoCheckInterval">
+                        <option value="1">Каждый час</option>
+                        <option value="6" selected>Каждые 6 часов</option>
+                        <option value="12">Каждые 12 часов</option>
+                        <option value="24">Каждые 24 часа</option>
+                    </select>
+                </div>
+                
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="autoGeoUpdate">
+                    <label class="form-check-label" for="autoGeoUpdate">
+                        Обновлять геоданные новых серверов
+                    </label>
+                </div>
+                
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="autoSystemInfo">
+                    <label class="form-check-label" for="autoSystemInfo">
+                        Собирать системную информацию
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Настройки безопасности и интерфейса -->
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-shield-alt me-2"></i>Безопасность
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="encryptPasswords">
+                    <label class="form-check-label" for="encryptPasswords">
+                        <strong>Шифровать пароли в базе данных</strong>
+                    </label>
+                    <small class="form-text text-muted d-block">
+                        Рекомендуется для продакшена
+                    </small>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="sessionTimeout" class="form-label">
+                        Время сессии (минуты)
+                    </label>
+                    <input type="number" class="form-control" id="sessionTimeout" value="60" min="5" max="1440">
+                </div>
+                
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="auditLog">
+                    <label class="form-check-label" for="auditLog">
+                        Журнал аудита
+                    </label>
+                    <small class="form-text text-muted d-block">
+                        Логировать все операции
+                    </small>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="maxFileSize" class="form-label">
+                        Максимальный размер файла (МБ)
+                    </label>
+                    <input type="number" class="form-control" id="maxFileSize" value="10" min="1" max="100">
+                </div>
+            </div>
+        </div>
+        
+        <!-- Настройки интерфейса -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-desktop me-2"></i>Интерфейс
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label for="pageSize" class="form-label">
+                        Серверов на странице
+                    </label>
+                    <select class="form-select" id="pageSize">
+                        <option value="25">25</option>
+                        <option value="50" selected>50</option>
+                        <option value="100">100</option>
+                        <option value="200">200</option>
+                    </select>
+                </div>
+                
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="darkMode">
+                    <label class="form-check-label" for="darkMode">
+                        Темная тема
+                    </label>
+                </div>
+                
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="showTooltips" checked>
+                    <label class="form-check-label" for="showTooltips">
+                        Показывать подсказки
+                    </label>
+                </div>
+                
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="autoRefresh">
+                    <label class="form-check-label" for="autoRefresh">
+                        Автообновление страницы
+                    </label>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="refreshInterval" class="form-label">
+                        Интервал обновления (секунды)
+                    </label>
+                    <input type="number" class="form-control" id="refreshInterval" value="30" min="10" max="300">
+                </div>
+            </div>
+        </div>
+        
+        <!-- Уведомления -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-bell me-2"></i>Уведомления
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="browserNotifications">
+                    <label class="form-check-label" for="browserNotifications">
+                        Уведомления браузера
+                    </label>
+                </div>
+                
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="soundNotifications">
+                    <label class="form-check-label" for="soundNotifications">
+                        Звуковые уведомления
+                    </label>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="emailNotifications" class="form-label">
+                        Email уведомления
+                    </label>
+                    <input type="email" class="form-control" id="emailNotifications" placeholder="your@email.com">
+                </div>
+                
+                <div class="mb-3">
+                    <label for="telegramBot" class="form-label">
+                        Telegram Bot Token
+                    </label>
+                    <input type="text" class="form-control" id="telegramBot" placeholder="123456:ABC-DEF...">
+                </div>
+                
+                <div class="mb-3">
+                    <label for="telegramChat" class="form-label">
+                        Telegram Chat ID
+                    </label>
+                    <input type="text" class="form-control" id="telegramChat" placeholder="-123456789">
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Системная информация -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-info-circle me-2"></i>Системная информация
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="card border-primary">
+                            <div class="card-body text-center">
+                                <h3 class="text-primary" id="totalServersCount">{{ stats.total or 0 }}</h3>
+                                <p class="mb-0">Всего серверов</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card border-success">
+                            <div class="card-body text-center">
+                                <h3 class="text-success" id="activeServersCount">{{ stats.valid or 0 }}</h3>
+                                <p class="mb-0">Активных</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card border-info">
+                            <div class="card-body text-center">
+                                <h3 class="text-info" id="currentThreads">10</h3>
+                                <p class="mb-0">Текущих потоков</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card border-warning">
+                            <div class="card-body text-center">
+                                <h3 class="text-warning" id="systemLoad">0%</h3>
+                                <p class="mb-0">Нагрузка системы</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Настройки производительности</h6>
+                        <ul class="list-unstyled">
+                            <li><strong>Текущие потоки:</strong> <span id="currentThreadsText">10</span></li>
+                            <li><strong>Текущий таймаут:</strong> <span id="currentTimeoutText">10</span> сек</li>
+                            <li><strong>Максимум потоков:</strong> 100</li>
+                            <li><strong>Максимум таймаут:</strong> 60 сек</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Системные ресурсы</h6>
+                        <div class="mb-2">
+                            <div class="d-flex justify-content-between">
+                                <span>Память</span>
+                                <span id="memoryUsage">-</span>
+                            </div>
+                            <div class="progress" style="height: 8px;">
+                                <div class="progress-bar" id="memoryBar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        <div class="mb-2">
+                            <div class="d-flex justify-content-between">
+                                <span>CPU</span>
+                                <span id="cpuUsage">-</span>
+                            </div>
+                            <div class="progress" style="height: 8px;">
+                                <div class="progress-bar bg-info" id="cpuBar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно подтверждения сброса -->
+<div class="modal fade" id="resetModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-exclamation-triangle text-warning me-2"></i>Сброс настроек
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Вы уверены, что хотите сбросить все настройки к значениям по умолчанию?</p>
+                <div class="alert alert-warning">
+                    <strong>Внимание:</strong> Это действие нельзя отменить. Все текущие настройки будут потеряны.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-warning" onclick="confirmReset()">
+                    <i class="fas fa-undo me-1"></i>Сбросить
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Текущие настройки
+    let appSettings = {
+        performance: {
+            defaultThreads: 10,
+            defaultTimeout: 10,
+            maxThreads: 100,
+            maxTimeout: 60
+        },
+        automation: {
+            autoCheck: true,
+            autoCheckInterval: 6,
+            autoGeoUpdate: false,
+            autoSystemInfo: false
+        },
+        security: {
+            encryptPasswords: false,
+            sessionTimeout: 60,
+            auditLog: false,
+            maxFileSize: 10
+        },
+        ui: {
+            pageSize: 50,
+            darkMode: false,
+            showTooltips: true,
+            autoRefresh: false,
+            refreshInterval: 30
+        },
+        notifications: {
+            browserNotifications: false,
+            soundNotifications: false,
+            emailNotifications: '',
+            telegramBot: '',
+            telegramChat: ''
+        }
+    };
+
+    // Загрузка настроек при инициализации
+    function loadSettings() {
+        // Загружаем из localStorage
+        const savedSettings = localStorage.getItem('appSettings');
+        if (savedSettings) {
+            appSettings = { ...appSettings, ...JSON.parse(savedSettings) };
+        }
+        
+        // Применяем настройки к форме
+        applySettingsToForm();
+        
+        // Обновляем глобальные настройки для SSH операций
+        if (window.currentSettings) {
+            window.currentSettings.threads = appSettings.performance.defaultThreads;
+            window.currentSettings.timeout = appSettings.performance.defaultTimeout;
+        }
+        
+        // Обновляем отображение в sidebar
+        updateSidebarInfo();
+    }
+
+    // Применение настроек к элементам формы
+    function applySettingsToForm() {
+        // Производительность
+        document.getElementById('defaultThreads').value = appSettings.performance.defaultThreads;
+        document.getElementById('defaultTimeout').value = appSettings.performance.defaultTimeout;
+        updatePerformanceValues();
+        
+        // Автоматизация
+        document.getElementById('autoCheck').checked = appSettings.automation.autoCheck;
+        document.getElementById('autoCheckInterval').value = appSettings.automation.autoCheckInterval;
+        document.getElementById('autoGeoUpdate').checked = appSettings.automation.autoGeoUpdate;
+        document.getElementById('autoSystemInfo').checked = appSettings.automation.autoSystemInfo;
+        
+        // Безопасность
+        document.getElementById('encryptPasswords').checked = appSettings.security.encryptPasswords;
+        document.getElementById('sessionTimeout').value = appSettings.security.sessionTimeout;
+        document.getElementById('auditLog').checked = appSettings.security.auditLog;
+        document.getElementById('maxFileSize').value = appSettings.security.maxFileSize;
+        
+        // Интерфейс
+        document.getElementById('pageSize').value = appSettings.ui.pageSize;
+        document.getElementById('darkMode').checked = appSettings.ui.darkMode;
+        document.getElementById('showTooltips').checked = appSettings.ui.showTooltips;
+        document.getElementById('autoRefresh').checked = appSettings.ui.autoRefresh;
+        document.getElementById('refreshInterval').value = appSettings.ui.refreshInterval;
+        
+        // Уведомления
+        document.getElementById('browserNotifications').checked = appSettings.notifications.browserNotifications;
+        document.getElementById('soundNotifications').checked = appSettings.notifications.soundNotifications;
+        document.getElementById('emailNotifications').value = appSettings.notifications.emailNotifications;
+        document.getElementById('telegramBot').value = appSettings.notifications.telegramBot;
+        document.getElementById('telegramChat').value = appSettings.notifications.telegramChat;
+    }
+
+    // Сохранение всех настроек
+    function saveAllSettings() {
+        // Собираем настройки из формы
+        appSettings.performance.defaultThreads = parseInt(document.getElementById('defaultThreads').value);
+        appSettings.performance.defaultTimeout = parseInt(document.getElementById('defaultTimeout').value);
+        
+        appSettings.automation.autoCheck = document.getElementById('autoCheck').checked;
+        appSettings.automation.autoCheckInterval = parseInt(document.getElementById('autoCheckInterval').value);
+        appSettings.automation.autoGeoUpdate = document.getElementById('autoGeoUpdate').checked;
+        appSettings.automation.autoSystemInfo = document.getElementById('autoSystemInfo').checked;
+        
+        appSettings.security.encryptPasswords = document.getElementById('encryptPasswords').checked;
+        appSettings.security.sessionTimeout = parseInt(document.getElementById('sessionTimeout').value);
+        appSettings.security.auditLog = document.getElementById('auditLog').checked;
+        appSettings.security.maxFileSize = parseInt(document.getElementById('maxFileSize').value);
+        
+        appSettings.ui.pageSize = parseInt(document.getElementById('pageSize').value);
+        appSettings.ui.darkMode = document.getElementById('darkMode').checked;
+        appSettings.ui.showTooltips = document.getElementById('showTooltips').checked;
+        appSettings.ui.autoRefresh = document.getElementById('autoRefresh').checked;
+        appSettings.ui.refreshInterval = parseInt(document.getElementById('refreshInterval').value);
+        
+        appSettings.notifications.browserNotifications = document.getElementById('browserNotifications').checked;
+        appSettings.notifications.soundNotifications = document.getElementById('soundNotifications').checked;
+        appSettings.notifications.emailNotifications = document.getElementById('emailNotifications').value;
+        appSettings.notifications.telegramBot = document.getElementById('telegramBot').value;
+        appSettings.notifications.telegramChat = document.getElementById('telegramChat').value;
+        
+        // Сохраняем в localStorage
+        localStorage.setItem('appSettings', JSON.stringify(appSettings));
+        
+        // Обновляем глобальные настройки
+        if (window.currentSettings) {
+            window.currentSettings.threads = appSettings.performance.defaultThreads;
+            window.currentSettings.timeout = appSettings.performance.defaultTimeout;
+        }
+        
+        // Применяем настройки интерфейса
+        applyUISettings();
+        
+        // Обновляем отображение
+        updateSidebarInfo();
+        
+        // Показываем уведомление
+        showToast('Настройки сохранены', 'success');
+        
+        // Отправляем на сервер (если нужно)
+        fetch('/settings', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(appSettings)
+        }).catch(error => {
+            console.error('Ошибка сохранения настроек на сервере:', error);
+        });
+    }
+
+    // Применение настроек интерфейса
+    function applyUISettings() {
+        // Темная тема
+        if (appSettings.ui.darkMode) {
+            document.body.classList.add('dark-theme');
+        } else {
+            document.body.classList.remove('dark-theme');
+        }
+        
+        // Подсказки
+        if (!appSettings.ui.showTooltips) {
+            // Отключаем все tooltips
+            const tooltips = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+            tooltips.forEach(el => {
+                const tooltip = bootstrap.Tooltip.getInstance(el);
+                if (tooltip) tooltip.dispose();
+            });
+        }
+        
+        // Автообновление
+        if (appSettings.ui.autoRefresh) {
+            setInterval(() => {
+                updateSystemStats();
+            }, appSettings.ui.refreshInterval * 1000);
+        }
+    }
+
+    // Сброс к настройкам по умолчанию
+    function resetToDefaults() {
+        new bootstrap.Modal(document.getElementById('resetModal')).show();
+    }
+
+    function confirmReset() {
+        appSettings = {
+            performance: {
+                defaultThreads: 10,
+                defaultTimeout: 10,
+                maxThreads: 100,
+                maxTimeout: 60
+            },
+            automation: {
+                autoCheck: true,
+                autoCheckInterval: 6,
+                autoGeoUpdate: false,
+                autoSystemInfo: false
+            },
+            security: {
+                encryptPasswords: false,
+                sessionTimeout: 60,
+                auditLog: false,
+                maxFileSize: 10
+            },
+            ui: {
+                pageSize: 50,
+                darkMode: false,
+                showTooltips: true,
+                autoRefresh: false,
+                refreshInterval: 30
+            },
+            notifications: {
+                browserNotifications: false,
+                soundNotifications: false,
+                emailNotifications: '',
+                telegramBot: '',
+                telegramChat: ''
+            }
+        };
+        
+        applySettingsToForm();
+        bootstrap.Modal.getInstance(document.getElementById('resetModal')).hide();
+        showToast('Настройки сброшены к значениям по умолчанию', 'info');
+    }
+
+    // Предустановленные конфигурации
+    function setStable() {
+        document.getElementById('defaultThreads').value = 15;
+        document.getElementById('defaultTimeout').value = 12;
+        updatePerformanceValues();
+    }
+
+    function setFast() {
+        document.getElementById('defaultThreads').value = 50;
+        document.getElementById('defaultTimeout').value = 7;
+        updatePerformanceValues();
+    }
+
+    // Обновление отображения значений
+    function updatePerformanceValues() {
+        document.getElementById('defaultThreadsValue').textContent = document.getElementById('defaultThreads').value;
+        document.getElementById('defaultTimeoutValue').textContent = document.getElementById('defaultTimeout').value + 'с';
+    }
+
+    // Обновление информации в sidebar
+    function updateSidebarInfo() {
+        const threadsEl = document.getElementById('current-threads');
+        const timeoutEl = document.getElementById('current-timeout');
+        
+        if (threadsEl) threadsEl.textContent = appSettings.performance.defaultThreads;
+        if (timeoutEl) timeoutEl.textContent = appSettings.performance.defaultTimeout;
+        
+        // Обновляем системную информацию
+        document.getElementById('currentThreads').textContent = appSettings.performance.defaultThreads;
+        document.getElementById('currentThreadsText').textContent = appSettings.performance.defaultThreads;
+        document.getElementById('currentTimeoutText').textContent = appSettings.performance.defaultTimeout;
+    }
+
+    // Обновление системной статистики
+    function updateSystemStats() {
+        fetch('/api/servers')
+        .then(response => response.json())
+        .then(data => {
+            const total = data.length;
+            const active = data.filter(s => s.is_valid === true).length;
+            
+            document.getElementById('totalServersCount').textContent = total;
+            document.getElementById('activeServersCount').textContent = active;
+        })
+        .catch(error => {
+            console.error('Ошибка получения статистики:', error);
+        });
+        
+        // Симуляция системных ресурсов (в реальном приложении получать с сервера)
+        const memoryUsage = Math.floor(Math.random() * 30) + 20; // 20-50%
+        const cpuUsage = Math.floor(Math.random() * 20) + 5; // 5-25%
+        
+        document.getElementById('memoryUsage').textContent = memoryUsage + '%';
+        document.getElementById('memoryBar').style.width = memoryUsage + '%';
+        document.getElementById('cpuUsage').textContent = cpuUsage + '%';
+        document.getElementById('cpuBar').style.width = cpuUsage + '%';
+        document.getElementById('systemLoad').textContent = Math.max(memoryUsage, cpuUsage) + '%';
+    }
+
+    // Инициализация
+    document.addEventListener('DOMContentLoaded', function() {
+        loadSettings();
+        updateSystemStats();
+        
+        // Обработчики событий для слайдеров
+        document.getElementById('defaultThreads').addEventListener('input', updatePerformanceValues);
+        document.getElementById('defaultTimeout').addEventListener('input', updatePerformanceValues);
+        
+        // Запрос разрешения на уведомления браузера
+        document.getElementById('browserNotifications').addEventListener('change', function() {
+            if (this.checked && Notification.permission === 'default') {
+                Notification.requestPermission();
+            }
+        });
+        
+        // Обновляем статистику каждые 30 секунд
+        setInterval(updateSystemStats, 30000);
+    });
+</script>
+
+<style>
+    .dark-theme {
+        background-color: #1a1a1a !important;
+        color: #ffffff !important;
+    }
+    
+    .dark-theme .card {
+        background-color: #2d2d2d !important;
+        color: #ffffff !important;
+    }
+    
+    .dark-theme .form-control,
+    .dark-theme .form-select {
+        background-color: #3d3d3d !important;
+        color: #ffffff !important;
+        border-color: #555555 !important;
+    }
+    
+    .settings-icon {
+        animation: none !important;
+    }
+</style>
+{% endblock %}

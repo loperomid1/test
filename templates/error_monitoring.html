@@ -1,0 +1,692 @@
+{% extends "base.html" %}
+
+{% block title %}Мониторинг ошибок - SSH Server Manager{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2"><i class="fas fa-exclamation-triangle me-2"></i>Мониторинг ошибок</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <button type="button" class="btn btn-outline-info" onclick="refreshErrorStats()">
+                <i class="fas fa-sync-alt me-1"></i> Обновить
+            </button>
+            <button type="button" class="btn btn-outline-secondary" onclick="exportErrorReport()">
+                <i class="fas fa-download me-1"></i> Экспорт отчета
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Статистика ошибок -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card border-danger">
+            <div class="card-body text-center">
+                <i class="fas fa-times-circle fa-2x text-danger mb-2"></i>
+                <h3 class="text-danger" id="totalErrors">0</h3>
+                <p class="mb-0">Всего ошибок</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-warning">
+            <div class="card-body text-center">
+                <i class="fas fa-clock fa-2x text-warning mb-2"></i>
+                <h3 class="text-warning" id="timeoutErrors">0</h3>
+                <p class="mb-0">Таймауты</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-info">
+            <div class="card-body text-center">
+                <i class="fas fa-key fa-2x text-info mb-2"></i>
+                <h3 class="text-info" id="authErrors">0</h3>
+                <p class="mb-0">Ошибки авторизации</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-secondary">
+            <div class="card-body text-center">
+                <i class="fas fa-network-wired fa-2x text-secondary mb-2"></i>
+                <h3 class="text-secondary" id="networkErrors">0</h3>
+                <p class="mb-0">Сетевые ошибки</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Типы ошибок -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-pie me-2"></i>Распределение ошибок
+                </h5>
+            </div>
+            <div class="card-body">
+                <canvas id="errorTypesChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-line me-2"></i>Ошибки по времени
+                </h5>
+            </div>
+            <div class="card-body">
+                <canvas id="errorsTimeChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Частые ошибки -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <i class="fas fa-list me-2"></i>Наиболее частые ошибки
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Тип ошибки</th>
+                        <th>Описание</th>
+                        <th>Количество</th>
+                        <th>Последний раз</th>
+                        <th>Решение</th>
+                    </tr>
+                </thead>
+                <tbody id="frequentErrorsTable">
+                    <tr>
+                        <td><span class="badge bg-danger">SSH Banner</span></td>
+                        <td>Error reading SSH protocol banner</td>
+                        <td><span class="badge bg-secondary">45</span></td>
+                        <td><small class="text-muted">2 мин назад</small></td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-info" onclick="showErrorSolution('ssh_banner')">
+                                <i class="fas fa-lightbulb"></i> Решение
+                            </button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge bg-warning">Timeout</span></td>
+                        <td>Connection timeout</td>
+                        <td><span class="badge bg-secondary">32</span></td>
+                        <td><small class="text-muted">5 мин назад</small></td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-info" onclick="showErrorSolution('timeout')">
+                                <i class="fas fa-lightbulb"></i> Решение
+                            </button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge bg-info">Auth</span></td>
+                        <td>Authentication failed</td>
+                        <td><span class="badge bg-secondary">28</span></td>
+                        <td><small class="text-muted">10 мин назад</small></td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-info" onclick="showErrorSolution('auth')">
+                                <i class="fas fa-lightbulb"></i> Решение
+                            </button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge bg-secondary">Network</span></td>
+                        <td>Connection refused</td>
+                        <td><span class="badge bg-secondary">19</span></td>
+                        <td><small class="text-muted">15 мин назад</small></td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-info" onclick="showErrorSolution('network')">
+                                <i class="fas fa-lightbulb"></i> Решение
+                            </button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Проблемные серверы -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <i class="fas fa-server me-2"></i>Проблемные серверы
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Сервер</th>
+                        <th>Последняя ошибка</th>
+                        <th>Количество ошибок</th>
+                        <th>Статус</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody id="problematicServersTable">
+                    <!-- Динамически заполняется JavaScript -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Рекомендации -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <i class="fas fa-lightbulb me-2"></i>Рекомендации по оптимизации
+        </h5>
+    </div>
+    <div class="card-body">
+        <div id="recommendations">
+            <!-- Рекомендации заполняются динамически -->
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно с решениями -->
+<div class="modal fade" id="solutionModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-tools me-2"></i>Решение проблемы
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="solutionContent">
+                <!-- Содержимое заполняется динамически -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                <button type="button" class="btn btn-primary" onclick="applySolution()">
+                    <i class="fas fa-wrench me-1"></i>Применить решение
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+<script>
+    let errorTypesChart = null;
+    let errorsTimeChart = null;
+    
+    // Данные ошибок (в реальном приложении получать с сервера)
+    const errorData = {
+        types: {
+            'SSH Banner': 45,
+            'Timeout': 32,
+            'Authentication': 28,
+            'Network': 19,
+            'Permission': 12,
+            'Other': 8
+        },
+        timeline: [
+            { time: '00:00', errors: 5 },
+            { time: '04:00', errors: 3 },
+            { time: '08:00', errors: 12 },
+            { time: '12:00', errors: 18 },
+            { time: '16:00', errors: 25 },
+            { time: '20:00', errors: 15 }
+        ],
+        problematicServers: [
+            { host: '192.168.1.100', error: 'SSH Banner timeout', count: 15, status: 'offline' },
+            { host: '10.0.0.50', error: 'Authentication failed', count: 12, status: 'auth_error' },
+            { host: '172.16.0.20', error: 'Connection timeout', count: 8, status: 'timeout' },
+            { host: '192.168.2.75', error: 'Permission denied', count: 6, status: 'permission' }
+        ]
+    };
+    
+    // Решения для различных типов ошибок
+    const errorSolutions = {
+        ssh_banner: {
+            title: 'SSH Protocol Banner Error',
+            description: 'Ошибка чтения SSH banner часто возникает при медленном соединении или перегруженности сервера.',
+            solutions: [
+                {
+                    title: 'Увеличить таймаут banner',
+                    description: 'Увеличьте banner_timeout в настройках SSH подключения до 10-15 секунд',
+                    code: 'banner_timeout=15'
+                },
+                {
+                    title: 'Уменьшить количество потоков',
+                    description: 'Уменьшите количество одновременных подключений к серверу',
+                    code: 'max_workers=5-10'
+                },
+                {
+                    title: 'Добавить повторные попытки',
+                    description: 'Настройте автоматические повторные попытки подключения',
+                    code: 'retry_attempts=2-3'
+                }
+            ]
+        },
+        timeout: {
+            title: 'Connection Timeout',
+            description: 'Таймаут подключения может быть вызван медленной сетью или недоступностью сервера.',
+            solutions: [
+                {
+                    title: 'Увеличить общий таймаут',
+                    description: 'Увеличьте timeout подключения до 20-30 секунд',
+                    code: 'timeout=20-30'
+                },
+                {
+                    title: 'Проверить сетевую доступность',
+                    description: 'Выполните ping к серверу для проверки сетевой доступности',
+                    code: 'ping -c 4 server_ip'
+                },
+                {
+                    title: 'Проверить SSH сервис',
+                    description: 'Убедитесь, что SSH сервис запущен на целевом сервере',
+                    code: 'systemctl status ssh'
+                }
+            ]
+        },
+        auth: {
+            title: 'Authentication Failed',
+            description: 'Ошибка аутентификации означает неверные учетные данные или проблемы с правами доступа.',
+            solutions: [
+                {
+                    title: 'Проверить учетные данные',
+                    description: 'Убедитесь в правильности логина и пароля',
+                    code: 'ssh username@server_ip'
+                },
+                {
+                    title: 'Проверить SSH ключи',
+                    description: 'Если используются SSH ключи, проверьте их корректность',
+                    code: 'ssh-keygen -l -f ~/.ssh/id_rsa.pub'
+                },
+                {
+                    title: 'Проверить права пользователя',
+                    description: 'Убедитесь, что пользователь имеет право SSH доступа',
+                    code: 'grep username /etc/passwd'
+                }
+            ]
+        },
+        network: {
+            title: 'Network Connection Issues',
+            description: 'Сетевые проблемы могут быть связаны с недоступностью хоста или блокировкой портов.',
+            solutions: [
+                {
+                    title: 'Проверить доступность хоста',
+                    description: 'Выполните ping для проверки сетевой доступности',
+                    code: 'ping -c 4 server_ip'
+                },
+                {
+                    title: 'Проверить порт SSH',
+                    description: 'Убедитесь, что SSH порт открыт и доступен',
+                    code: 'telnet server_ip 22'
+                },
+                {
+                    title: 'Проверить файрвол',
+                    description: 'Проверьте настройки файрвола на клиенте и сервере',
+                    code: 'sudo ufw status'
+                }
+            ]
+        }
+    };
+    
+    function initCharts() {
+        // График типов ошибок
+        const ctx1 = document.getElementById('errorTypesChart').getContext('2d');
+        errorTypesChart = new Chart(ctx1, {
+            type: 'doughnut',
+            data: {
+                labels: Object.keys(errorData.types),
+                datasets: [{
+                    data: Object.values(errorData.types),
+                    backgroundColor: [
+                        '#dc3545',
+                        '#ffc107',
+                        '#17a2b8',
+                        '#6c757d',
+                        '#fd7e14',
+                        '#6f42c1'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+        
+        // График ошибок по времени
+        const ctx2 = document.getElementById('errorsTimeChart').getContext('2d');
+        errorsTimeChart = new Chart(ctx2, {
+            type: 'line',
+            data: {
+                labels: errorData.timeline.map(item => item.time),
+                datasets: [{
+                    label: 'Ошибки',
+                    data: errorData.timeline.map(item => item.errors),
+                    borderColor: '#dc3545',
+                    backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    }
+    
+    function updateErrorStats() {
+        // Обновляем счетчики
+        const totalErrors = Object.values(errorData.types).reduce((a, b) => a + b, 0);
+        document.getElementById('totalErrors').textContent = totalErrors;
+        document.getElementById('timeoutErrors').textContent = errorData.types['Timeout'] || 0;
+        document.getElementById('authErrors').textContent = errorData.types['Authentication'] || 0;
+        document.getElementById('networkErrors').textContent = errorData.types['Network'] || 0;
+    }
+    
+    function updateProblematicServers() {
+        const tbody = document.getElementById('problematicServersTable');
+        tbody.innerHTML = '';
+        
+        errorData.problematicServers.forEach(server => {
+            const statusBadge = getStatusBadge(server.status);
+            const row = `
+                <tr>
+                    <td><strong>${server.host}</strong></td>
+                    <td><small class="text-muted">${server.error}</small></td>
+                    <td><span class="badge bg-danger">${server.count}</span></td>
+                    <td>${statusBadge}</td>
+                    <td>
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-primary" onclick="retestServer('${server.host}')" title="Повторная проверка">
+                                <i class="fas fa-redo"></i>
+                            </button>
+                            <button class="btn btn-outline-info" onclick="viewServerDetails('${server.host}')" title="Подробности">
+                                <i class="fas fa-info-circle"></i>
+                            </button>
+                            <button class="btn btn-outline-warning" onclick="excludeServer('${server.host}')" title="Исключить">
+                                <i class="fas fa-eye-slash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+            tbody.innerHTML += row;
+        });
+    }
+    
+    function getStatusBadge(status) {
+        const badges = {
+            'offline': '<span class="badge bg-danger">Недоступен</span>',
+            'auth_error': '<span class="badge bg-warning">Ошибка авторизации</span>',
+            'timeout': '<span class="badge bg-secondary">Таймаут</span>',
+            'permission': '<span class="badge bg-info">Нет прав</span>'
+        };
+        return badges[status] || '<span class="badge bg-light">Неизвестно</span>';
+    }
+    
+    function generateRecommendations() {
+        const recommendations = document.getElementById('recommendations');
+        let html = '';
+        
+        // Анализируем данные ошибок и генерируем рекомендации
+        const totalErrors = Object.values(errorData.types).reduce((a, b) => a + b, 0);
+        const bannerErrors = errorData.types['SSH Banner'] || 0;
+        const timeoutErrors = errorData.types['Timeout'] || 0;
+        
+        if (bannerErrors > totalErrors * 0.3) {
+            html += `
+                <div class="alert alert-warning">
+                    <h6 class="alert-heading"><i class="fas fa-exclamation-triangle me-1"></i>Много ошибок SSH Banner</h6>
+                    <p class="mb-2">Обнаружено ${bannerErrors} ошибок чтения SSH banner (${Math.round(bannerErrors/totalErrors*100)}% от всех ошибок).</p>
+                    <p class="mb-0"><strong>Рекомендация:</strong> Увеличьте banner_timeout до 15 секунд и уменьшите количество одновременных потоков до 10-15.</p>
+                </div>
+            `;
+        }
+        
+        if (timeoutErrors > totalErrors * 0.2) {
+            html += `
+                <div class="alert alert-info">
+                    <h6 class="alert-heading"><i class="fas fa-clock me-1"></i>Частые таймауты</h6>
+                    <p class="mb-2">Обнаружено ${timeoutErrors} таймаутов подключения (${Math.round(timeoutErrors/totalErrors*100)}% от всех ошибок).</p>
+                    <p class="mb-0"><strong>Рекомендация:</strong> Увеличьте общий таймаут подключения до 20-25 секунд для медленных сетей.</p>
+                </div>
+            `;
+        }
+        
+        if (errorData.problematicServers.length > 10) {
+            html += `
+                <div class="alert alert-danger">
+                    <h6 class="alert-heading"><i class="fas fa-server me-1"></i>Много проблемных серверов</h6>
+                    <p class="mb-2">Обнаружено ${errorData.problematicServers.length} серверов с частыми ошибками.</p>
+                    <p class="mb-0"><strong>Рекомендация:</strong> Рассмотрите возможность исключения недоступных серверов или обновления их учетных данных.</p>
+                </div>
+            `;
+        }
+        
+        if (html === '') {
+            html = `
+                <div class="alert alert-success">
+                    <h6 class="alert-heading"><i class="fas fa-check-circle me-1"></i>Система работает стабильно</h6>
+                    <p class="mb-0">Количество ошибок находится в пределах нормы. Продолжайте мониторинг для поддержания оптимальной производительности.</p>
+                </div>
+            `;
+        }
+        
+        recommendations.innerHTML = html;
+    }
+    
+    function showErrorSolution(errorType) {
+        const solution = errorSolutions[errorType];
+        if (!solution) return;
+        
+        let html = `
+            <h6>${solution.title}</h6>
+            <p class="text-muted">${solution.description}</p>
+            <div class="row">
+        `;
+        
+        solution.solutions.forEach((sol, index) => {
+            html += `
+                <div class="col-md-4 mb-3">
+                    <div class="card border-primary">
+                        <div class="card-body">
+                            <h6 class="card-title">${sol.title}</h6>
+                            <p class="card-text small">${sol.description}</p>
+                            <code class="small">${sol.code}</code>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        html += '</div>';
+        
+        document.getElementById('solutionContent').innerHTML = html;
+        new bootstrap.Modal(document.getElementById('solutionModal')).show();
+    }
+    
+    function refreshErrorStats() {
+        // В реальном приложении здесь был бы AJAX запрос
+        showToast('Статистика ошибок обновлена', 'info');
+        
+        // Симуляция обновления данных
+        setTimeout(() => {
+            updateErrorStats();
+            updateProblematicServers();
+            generateRecommendations();
+            
+            if (errorTypesChart) {
+                errorTypesChart.update();
+            }
+            if (errorsTimeChart) {
+                errorsTimeChart.update();
+            }
+        }, 500);
+    }
+    
+    function exportErrorReport() {
+        // Генерация отчета об ошибках
+        const report = {
+            timestamp: new Date().toISOString(),
+            totalErrors: Object.values(errorData.types).reduce((a, b) => a + b, 0),
+            errorsByType: errorData.types,
+            problematicServers: errorData.problematicServers,
+            timeline: errorData.timeline
+        };
+        
+        const blob = new Blob([JSON.stringify(report, null, 2)], {
+            type: 'application/json'
+        });
+        
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `ssh_manager_error_report_${new Date().toISOString().slice(0, 10)}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        showToast('Отчет об ошибках экспортирован', 'success');
+    }
+    
+    function applySolution() {
+        // Применение решения (в реальном приложении отправка на сервер)
+        showToast('Настройки применены. Перезапустите проверку серверов.', 'success');
+        bootstrap.Modal.getInstance(document.getElementById('solutionModal')).hide();
+    }
+    
+    function retestServer(host) {
+        showToast(`Повторная проверка сервера ${host} запущена`, 'info');
+        
+        // Симуляция повторной проверки
+        setTimeout(() => {
+            showToast(`Сервер ${host} проверен`, 'success');
+        }, 2000);
+    }
+    
+    function viewServerDetails(host) {
+        // Переход к детальной странице сервера
+        window.location.href = `/servers?search=${host}`;
+    }
+    
+    function excludeServer(host) {
+        if (confirm(`Исключить сервер ${host} из проверок?`)) {
+            showToast(`Сервер ${host} исключен из автоматических проверок`, 'warning');
+            
+            // Удаляем из списка проблемных серверов
+            const index = errorData.problematicServers.findIndex(s => s.host === host);
+            if (index > -1) {
+                errorData.problematicServers.splice(index, 1);
+                updateProblematicServers();
+            }
+        }
+    }
+    
+    // Инициализация при загрузке страницы
+    document.addEventListener('DOMContentLoaded', function() {
+        initCharts();
+        updateErrorStats();
+        updateProblematicServers();
+        generateRecommendations();
+        
+        // Автообновление каждые 5 минут
+        setInterval(refreshErrorStats, 5 * 60 * 1000);
+    });
+    
+    // Утилиты
+    function showToast(message, type = 'info') {
+        const toastHtml = `
+            <div class="toast align-items-center text-white bg-${type} border-0" role="alert">
+                <div class="d-flex">
+                    <div class="toast-body">${message}</div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                </div>
+            </div>
+        `;
+        
+        let toastContainer = document.getElementById('toastContainer');
+        if (!toastContainer) {
+            toastContainer = document.createElement('div');
+            toastContainer.id = 'toastContainer';
+            toastContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+            document.body.appendChild(toastContainer);
+        }
+        
+        toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+        const toastElement = toastContainer.lastElementChild;
+        const toast = new bootstrap.Toast(toastElement);
+        toast.show();
+        
+        toastElement.addEventListener('hidden.bs.toast', () => {
+            toastElement.remove();
+        });
+    }
+</script>
+
+<style>
+    .card {
+        transition: transform 0.2s ease-in-out;
+    }
+    
+    .card:hover {
+        transform: translateY(-2px);
+    }
+    
+    .alert {
+        border-left: 4px solid;
+    }
+    
+    .alert-warning {
+        border-left-color: #ffc107;
+    }
+    
+    .alert-info {
+        border-left-color: #17a2b8;
+    }
+    
+    .alert-danger {
+        border-left-color: #dc3545;
+    }
+    
+    .alert-success {
+        border-left-color: #28a745;
+    }
+    
+    code {
+        background-color: #f8f9fa;
+        padding: 2px 4px;
+        border-radius: 3px;
+        font-size: 0.875em;
+    }
+    
+    .table-hover tbody tr:hover {
+        background-color: rgba(0,0,0,.075);
+    }
+    
+    .btn-group-sm .btn {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+    }
+</style>
+{% endblock %}

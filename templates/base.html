@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}SSH Server Manager{% endblock %}</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" rel="stylesheet">
+    <style>
+        .sidebar {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .sidebar .nav-link {
+            color: rgba(255,255,255,0.8);
+            border-radius: 0.5rem;
+            margin: 0.2rem 0;
+            transition: all 0.3s ease;
+        }
+        .sidebar .nav-link:hover, .sidebar .nav-link.active {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            transform: translateX(5px);
+        }
+        .main-content {
+            background-color: #f8f9fa;
+            min-height: 100vh;
+        }
+        .card {
+            border: none;
+            border-radius: 1rem;
+            box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.075);
+            transition: all 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15);
+        }
+        .status-valid { color: #28a745; }
+        .status-invalid { color: #dc3545; }
+        .status-unchecked { color: #ffc107; }
+        .progress-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1050;
+            background: white;
+            padding: 1rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: none;
+        }
+        .server-item {
+            transition: all 0.2s ease;
+        }
+        .server-item:hover {
+            background-color: #f8f9fa;
+        }
+        .btn-gradient {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border: none;
+            color: white;
+        }
+        .btn-gradient:hover {
+            background: linear-gradient(45deg, #764ba2, #667eea);
+            color: white;
+        }
+        .stats-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .loading-spinner {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 9999;
+        }
+        .settings-icon {
+            font-size: 1.2em;
+            animation: rotate 6s linear infinite;
+        }
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .settings-icon:hover {
+            animation: rotate 1s linear infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <nav class="col-md-3 col-lg-2 d-md-block sidebar collapse">
+                <div class="position-sticky pt-3">
+                    <div class="text-center mb-4">
+                        <h4 class="text-white"><i class="fas fa-server"></i> SSH Manager</h4>
+                    </div>
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'index' %}active{% endif %}" href="{{ url_for('index') }}" 
+                               data-bs-toggle="tooltip" data-bs-placement="right" 
+                               title="Главная страница с обзором всех серверов и статистикой">
+                                <i class="fas fa-home me-2"></i> Главная
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'servers' %}active{% endif %}" href="{{ url_for('servers') }}"
+                               data-bs-toggle="tooltip" data-bs-placement="right" 
+                               title="Список всех серверов с возможностью фильтрации, сортировки и управления">
+                                <i class="fas fa-list me-2"></i> Серверы
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'map_view' %}active{% endif %}" href="{{ url_for('map_view') }}"
+                               data-bs-toggle="tooltip" data-bs-placement="right" 
+                               title="Интерактивная карта серверов с отображением их географического расположения">
+                                <i class="fas fa-map me-2"></i> Карта
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'upload_servers' %}active{% endif %}" href="{{ url_for('upload_servers') }}"
+                               data-bs-toggle="tooltip" data-bs-placement="right" 
+                               title="Загрузка серверов из файла в формате host:port:username:password">
+                                <i class="fas fa-upload me-2"></i> Загрузка
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'error_monitoring' %}active{% endif %}" href="{{ url_for('error_monitoring') }}"
+                               data-bs-toggle="tooltip" data-bs-placement="right" 
+                               title="Мониторинг ошибок SSH подключений и рекомендации по их устранению">
+                                <i class="fas fa-exclamation-triangle me-2"></i> Мониторинг ошибок
+                            </a>
+                        </li>
+                    </ul>
+                    
+                    <hr class="text-white-50">
+                    
+                    <!-- Быстрые настройки -->
+                    <div class="px-3 mb-3">
+                        <button class="btn btn-outline-light btn-sm w-100" onclick="showSettingsModal()"
+                                data-bs-toggle="tooltip" data-bs-placement="right"
+                                title="Настройки многопоточности и таймаутов">
+                            <i class="fas fa-cog settings-icon me-2"></i>Настройки
+                        </button>
+                    </div>
+                    
+                    <div class="text-white-50 small px-3 mt-4">
+                        <div class="mb-2">
+                            <i class="fas fa-info-circle me-1"></i> Версия: 1.0
+                        </div>
+                        <div class="mb-2">
+                            <i class="fas fa-clock me-1"></i> <span id="current-time"></span>
+                        </div>
+                        <div class="mt-2">
+                            <small>
+                                <div>Потоки: <span id="current-threads">10</span></div>
+                                <div>Таймаут: <span id="current-timeout">10</span>с</div>
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </nav>
+
+            <!-- Main content -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 main-content">
+                <!-- Progress bar -->
+                <div id="progressContainer" class="progress-container">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div>
+                            <span id="progressText">Обработка...</span>
+                            <div class="small text-muted">
+                                <span id="progressDetails"></span>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-danger" onclick="stopOperation()">
+                            <i class="fas fa-stop"></i> Остановить
+                        </button>
+                    </div>
+                    <div class="progress mb-2">
+                        <div id="progressBar" class="progress-bar bg-primary" role="progressbar" style="width: 0%"></div>
+                    </div>
+                    <div class="d-flex justify-content-between small text-muted">
+                        <span id="progressCount">0 / 0</span>
+                        <span id="progressSpeed"></span>
+                        <span id="progressETA"></span>
+                    </div>
+                </div>
+
+                <!-- Loading spinner -->
+                <div id="loadingSpinner" class="loading-spinner">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Загрузка...</span>
+                    </div>
+                </div>
+
+                <!-- Flash messages -->
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show mt-3" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                <!-- Page content -->
+                <div class="pt-3">
+                    {% block content %}{% endblock %}
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Модальное окно настроек -->
+    <div class="modal fade" id="settingsModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-cog me-2"></i>Настройки производительности
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="settingsForm">
+                        <div class="mb-3">
+                            <label for="threadsInput" class="form-label">
+                                <i class="fas fa-layer-group me-1"></i>Количество потоков
+                                <small class="text-muted">(1-100)</small>
+                            </label>
+                            <input type="range" class="form-range" min="1" max="100" value="10" id="threadsInput">
+                            <div class="d-flex justify-content-between">
+                                <small class="text-muted">1</small>
+                                <span class="badge bg-primary" id="threadsValue">10</span>
+                                <small class="text-muted">100</small>
+                            </div>
+                            <small class="form-text text-muted">
+                                Больше потоков = быстрее, но больше нагрузка на систему
+                            </small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="timeoutInput" class="form-label">
+                                <i class="fas fa-clock me-1"></i>Таймаут подключения
+                                <small class="text-muted">(5-60 сек)</small>
+                            </label>
+                            <input type="range" class="form-range" min="5" max="60" value="10" id="timeoutInput">
+                            <div class="d-flex justify-content-between">
+                                <small class="text-muted">5с</small>
+                                <span class="badge bg-info" id="timeoutValue">10с</span>
+                                <small class="text-muted">60с</small>
+                            </div>
+                            <small class="form-text text-muted">
+                                Больше таймаут = больше шансов подключиться к медленным серверам
+                            </small>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-6">
+                                <div class="card border-success">
+                                    <div class="card-body text-center">
+                                        <h6 class="card-title text-success">Рекомендуется</h6>
+                                        <p class="card-text small">
+                                            <strong>10-20 потоков</strong><br>
+                                            <strong>10-15 сек таймаут</strong>
+                                        </p>
+                                        <button type="button" class="btn btn-sm btn-success" onclick="setRecommended()">
+                                            Применить
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="card border-warning">
+                                    <div class="card-body text-center">
+                                        <h6 class="card-title text-warning">Быстро</h6>
+                                        <p class="card-text small">
+                                            <strong>50+ потоков</strong><br>
+                                            <strong>5-8 сек таймаут</strong>
+                                        </p>
+                                        <button type="button" class="btn btn-sm btn-warning" onclick="setFast()">
+                                            Применить
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="button" class="btn btn-primary" onclick="saveSettings()">Сохранить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+    <script>
+        // Глобальные переменные
+        let currentOperation = null;
+        let progressInterval = null;
+        let currentSettings = {
+            threads: 10,
+            timeout: 10
+        };
+
+        // Обновление времени
+        function updateTime() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('ru-RU', {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            const timeElement = document.getElementById('current-time');
+            if (timeElement) {
+                timeElement.textContent = timeString;
+            }
+        }
+
+        // Показать/скрыть прогресс бар
+        function showProgress(text = 'Обработка...') {
+            document.getElementById('progressContainer').style.display = 'block';
+            document.getElementById('progressText').textContent = text;
+            document.getElementById('progressBar').style.width = '0%';
+            document.getElementById('progressCount').textContent = '0 / 0';
+            document.getElementById('progressSpeed').textContent = '';
+            document.getElementById('progressETA').textContent = '';
+            document.getElementById('progressDetails').textContent = '';
+        }
+
+        function hideProgress() {
+            document.getElementById('progressContainer').style.display = 'none';
+            if (progressInterval) {
+                clearInterval(progressInterval);
+                progressInterval = null;
+            }
+        }
+
+        // Обновление прогресса
+        function updateProgress(status) {
+            const percent = status.total > 0 ? (status.progress / status.total) * 100 : 0;
+            document.getElementById('progressBar').style.width = percent + '%';
+            document.getElementById('progressCount').textContent = `${status.progress} / ${status.total}`;
+            
+            // Детали производительности
+            if (status.threads && status.timeout) {
+                document.getElementById('progressDetails').textContent = 
+                    `Потоков: ${status.threads}, Таймаут: ${status.timeout}с`;
+            }
+            
+            // Скорость
+            if (status.servers_per_second) {
+                document.getElementById('progressSpeed').textContent = 
+                    `${status.servers_per_second} сер/сек`;
+            }
+            
+            // Оставшееся время
+            if (status.estimated_time && status.estimated_time > 0) {
+                const minutes = Math.floor(status.estimated_time / 60);
+                const seconds = Math.floor(status.estimated_time % 60);
+                let etaText = '';
+                if (minutes > 0) {
+                    etaText = `~${minutes}м ${seconds}с`;
+                } else {
+                    etaText = `~${seconds}с`;
+                }
+                document.getElementById('progressETA').textContent = etaText;
+            }
+        }
+
+        // Остановка операции
+        function stopOperation() {
+            if (currentOperation) {
+                fetch('/stop_operation', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({operation: currentOperation})
+                });
+                hideProgress();
+                currentOperation = null;
+            }
+        }
+
+        // Валидация серверов
+        function validateServers(serverIds = []) {
+            if (currentOperation) {
+                alert('Уже выполняется операция');
+                return;
+            }
+
+            currentOperation = 'validation';
+            showProgress('Валидация серверов...');
+
+            fetch('/validate', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    server_ids: serverIds,
+                    threads: currentSettings.threads,
+                    timeout: currentSettings.timeout
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    progressInterval = setInterval(checkValidationStatus, 1000);
+                } else {
+                    alert('Ошибка: ' + data.error);
+                    hideProgress();
+                    currentOperation = null;
+                }
+            })
+            .catch(error => {
+                console.error('Ошибка:', error);
+                hideProgress();
+                currentOperation = null;
+            });
+        }
+
+        function checkValidationStatus() {
+            fetch('/validation_status')
+            .then(response => response.json())
+            .then(data => {
+                if (data.running) {
+                    updateProgress(data);
+                } else {
+                    hideProgress();
+                    currentOperation = null;
+                    location.reload();
+                }
+            })
+            .catch(error => {
+                console.error('Ошибка:', error);
+                hideProgress();
+                currentOperation = null;
+            });
+        }
+
+        // Выполнение команды
+        function executeCommand() {
+            if (currentOperation) {
+                alert('Уже выполняется операция');
+                return;
+            }
+
+            const command = prompt('Введите команду для выполнения:');
+            if (!command) return;
+
+            const selectedServers = getSelectedServers();
+            
+            currentOperation = 'command';
+            showProgress('Выполнение команды...');
+
+            fetch('/execute_command', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    command: command,
+                    server_ids: selectedServers,
+                    threads: currentSettings.threads,
+                    timeout: currentSettings.timeout
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    progressInterval = setInterval(checkCommandStatus, 1000);
+                } else {
+                    alert('Ошибка: ' + data.error);
+                    hideProgress();
+                    currentOperation = null;
+                }
+            })
+            .catch(error => {
+                console.error('Ошибка:', error);
+                hideProgress();
+                currentOperation = null;
+            });
+        }
+
+        function checkCommandStatus() {
+            fetch('/command_status')
+            .then(response => response.json())
+            .then(data => {
+                if (data.running) {
+                    updateProgress(data);
+                } else {
+                    hideProgress();
+                    currentOperation = null;
+                    showCommandResults(data.results);
+                }
+            })
+            .catch(error => {
+                console.error('Ошибка:', error);
+                hideProgress();
+                currentOperation = null;
+            });
+        }
+
+        function showCommandResults(results) {
+            let html = '<div class="modal fade" id="resultsModal" tabindex="-1"><div class="modal-dialog modal-xl"><div class="modal-content">';
+            html += '<div class="modal-header"><h5 class="modal-title">Результаты выполнения команды</h5>';
+            html += '<button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>';
+            html += '<div class="modal-body" style="max-height: 70vh; overflow-y: auto;">';
+            
+            results.forEach(result => {
+                html += `<div class="mb-3 p-3 border rounded">`;
+                html += `<h6>${result.host} ${result.success ? '<span class="badge bg-success">Успех</span>' : '<span class="badge bg-danger">Ошибка</span>'}</h6>`;
+                
+                if (result.output) {
+                    html += `<div class="mt-2"><strong>Вывод:</strong><br><pre class="bg-light p-2 rounded">${result.output}</pre></div>`;
+                }
+                
+                if (result.error) {
+                    html += `<div class="mt-2"><strong>Ошибка:</strong><br><pre class="bg-danger text-white p-2 rounded">${result.error}</pre></div>`;
+                }
+                
+                html += '</div>';
+            });
+            
+            html += '</div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button></div>';
+            html += '</div></div></div>';
+            
+            document.body.insertAdjacentHTML('beforeend', html);
+            new bootstrap.Modal(document.getElementById('resultsModal')).show();
+            
+            // Удаляем модальное окно после закрытия
+            document.getElementById('resultsModal').addEventListener('hidden.bs.modal', function() {
+                this.remove();
+            });
+        }
+
+        function getSelectedServers() {
+            const checkboxes = document.querySelectorAll('input[name="server_ids"]:checked');
+            return Array.from(checkboxes).map(cb => parseInt(cb.value));
+        }
+
+        // Функции для работы с чекбоксами
+        function toggleAllServers() {
+            const masterCheckbox = document.getElementById('selectAll');
+            const checkboxes = document.querySelectorAll('input[name="server_ids"]');
+            
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = masterCheckbox.checked;
+            });
+        }
+
+        // Настройки
+        function showSettingsModal() {
+            // Загружаем текущие настройки
+            document.getElementById('threadsInput').value = currentSettings.threads;
+            document.getElementById('timeoutInput').value = currentSettings.timeout;
+            document.getElementById('threadsValue').textContent = currentSettings.threads;
+            document.getElementById('timeoutValue').textContent = currentSettings.timeout + 'с';
+            
+            new bootstrap.Modal(document.getElementById('settingsModal')).show();
+        }
+
+        function saveSettings() {
+            currentSettings.threads = parseInt(document.getElementById('threadsInput').value);
+            currentSettings.timeout = parseInt(document.getElementById('timeoutInput').value);
+            
+            // Обновляем отображение в sidebar
+            document.getElementById('current-threads').textContent = currentSettings.threads;
+            document.getElementById('current-timeout').textContent = currentSettings.timeout;
+            
+            // Сохраняем в localStorage
+            localStorage.setItem('sshManagerSettings', JSON.stringify(currentSettings));
+            
+            bootstrap.Modal.getInstance(document.getElementById('settingsModal')).hide();
+            
+            // Показываем уведомление
+            showToast('Настройки сохранены', 'success');
+        }
+
+        function setRecommended() {
+            document.getElementById('threadsInput').value = 15;
+            document.getElementById('timeoutInput').value = 12;
+            updateSettingsDisplay();
+        }
+
+        function setFast() {
+            document.getElementById('threadsInput').value = 50;
+            document.getElementById('timeoutInput').value = 7;
+            updateSettingsDisplay();
+        }
+
+        function updateSettingsDisplay() {
+            document.getElementById('threadsValue').textContent = document.getElementById('threadsInput').value;
+            document.getElementById('timeoutValue').textContent = document.getElementById('timeoutInput').value + 'с';
+        }
+
+        function showToast(message, type = 'info') {
+            const toastHtml = `
+                <div class="toast align-items-center text-white bg-${type} border-0" role="alert">
+                    <div class="d-flex">
+                        <div class="toast-body">${message}</div>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                    </div>
+                </div>
+            `;
+            
+            // Создаем контейнер для toast если его нет
+            let toastContainer = document.getElementById('toastContainer');
+            if (!toastContainer) {
+                toastContainer = document.createElement('div');
+                toastContainer.id = 'toastContainer';
+                toastContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+                document.body.appendChild(toastContainer);
+            }
+            
+            toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+            const toastElement = toastContainer.lastElementChild;
+            const toast = new bootstrap.Toast(toastElement);
+            toast.show();
+            
+            // Удаляем toast после скрытия
+            toastElement.addEventListener('hidden.bs.toast', () => {
+                toastElement.remove();
+            });
+        }
+
+        // Утилиты
+        function formatDate(dateString) {
+            if (!dateString) return 'Никогда';
+            const date = new Date(dateString);
+            return date.toLocaleString('ru-RU');
+        }
+
+        // Инициализация при загрузке страницы
+        document.addEventListener('DOMContentLoaded', function() {
+            // Загружаем сохраненные настройки
+            const savedSettings = localStorage.getItem('sshManagerSettings');
+            if (savedSettings) {
+                currentSettings = JSON.parse(savedSettings);
+                document.getElementById('current-threads').textContent = currentSettings.threads;
+                document.getElementById('current-timeout').textContent = currentSettings.timeout;
+            }
+            
+            // Обновляем время сразу и затем каждую минуту
+            updateTime();
+            setInterval(updateTime, 60000);
+            
+            // Обработчики для слайдеров в настройках
+            document.getElementById('threadsInput').addEventListener('input', updateSettingsDisplay);
+            document.getElementById('timeoutInput').addEventListener('input', updateSettingsDisplay);
+            
+            // Инициализируем все tooltips
+            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+        });
+    </script>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>
