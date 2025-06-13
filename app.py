@@ -11,28 +11,22 @@ from context_utils import init_context_utils, task_manager, with_app_context
 import threading
 import time
 
-# Создаем приложение
 app = Flask(__name__)
 
-# Получаем базовую директорию проекта
 basedir = Path(__file__).parent.absolute()
 
-# Конфигурация приложения
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key-change-me-in-production')
 
-# Создаем абсолютный путь к базе данных (для разработки)
 db_dir = basedir / 'database'
 db_dir.mkdir(exist_ok=True)
 db_path = db_dir / 'ssh_servers_dev.db'
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# Создаем папку для загрузок
 upload_dir = basedir / 'uploads'
 upload_dir.mkdir(exist_ok=True)
 app.config['UPLOAD_FOLDER'] = str(upload_dir)
 
-# Создаем папку для логов
 logs_dir = basedir / 'logs'
 logs_dir.mkdir(exist_ok=True)
 
@@ -41,10 +35,8 @@ print(f"📁 Папка загрузок: {upload_dir}")
 
 db.init_app(app)
 
-# Инициализируем утилиты контекста
 init_context_utils(app)
 
-# Глобальные переменные для отслеживания статуса операций
 validation_status = {
     'running': False, 
     'progress': 0, 
@@ -66,12 +58,10 @@ command_status = {
     'estimated_time': None
 }
 
-# Инициализируем SSH Manager с дефолтными настройками
 ssh_manager = SSHManager(max_workers=10, timeout=15)
 
 @app.route('/')
 def index():
-    """Главная страница с обзором серверов"""
     servers = SSHServer.query.all()
     stats = {
         'total': len(servers),
@@ -83,23 +73,19 @@ def index():
 
 @app.route('/servers')
 def servers():
-    """Страница со списком серверов"""
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 50, type=int)
     
-    # Фильтры
     status_filter = request.args.get('status', 'all')
     country_filter = request.args.get('country', 'all')
     os_filter = request.args.get('os', 'all')
     search = request.args.get('search', '')
     
-    # Сортировка
     sort_by = request.args.get('sort', 'host')
     sort_order = request.args.get('order', 'asc')
     
     query = SSHServer.query
     
-    # Применяем фильтры
     if status_filter == 'valid':
         query = query.filter(SSHServer.is_valid == True)
     elif status_filter == 'invalid':
@@ -116,7 +102,6 @@ def servers():
     if search:
         query = query.filter(SSHServer.host.contains(search))
     
-    # Применяем сортировку
     sort_column = getattr(SSHServer, sort_by, SSHServer.host)
     if sort_order == 'desc':
         query = query.order_by(sort_column.desc())
@@ -127,11 +112,9 @@ def servers():
         page=page, per_page=per_page, error_out=False
     )
     
-    # Получаем уникальные значения для фильтров
     countries = db.session.query(SSHServer.country).distinct().all()
     countries = [c[0] for c in countries if c[0]]
     
-    # Получаем уникальные ОС
     os_systems = db.session.query(SSHServer.os_info).filter(SSHServer.os_info.isnot(None)).distinct().all()
     os_list = []
     for os_info in os_systems:
@@ -161,7 +144,6 @@ def servers():
 
 @app.route('/map')
 def map_view():
-    """Страница с картой серверов"""
     servers = SSHServer.query.filter(
         SSHServer.latitude.isnot(None),
         SSHServer.longitude.isnot(None)
@@ -185,7 +167,6 @@ def map_view():
 
 @app.route('/upload', methods=['GET', 'POST'])
 def upload_servers():
-    """Загрузка серверов из файла"""
     if request.method == 'POST':
         if 'file' not in request.files:
             flash('Файл не выбран', 'error')
@@ -206,7 +187,6 @@ def upload_servers():
                 added_count = 0
                 
                 for server_data in servers_data:
-                    # Проверяем, не существует ли уже такой сервер
                     existing = SSHServer.query.filter_by(
                         host=server_data['host'],
                         port=server_data['port'],
@@ -215,7 +195,6 @@ def upload_servers():
                     
                     if not existing:
                         server = SSHServer(**server_data)
-                        # Получаем геоданные
                         try:
                             geo_data = get_server_geo(server_data['host'])
                             if geo_data:
@@ -225,7 +204,6 @@ def upload_servers():
                                 server.longitude = geo_data.get('longitude')
                         except Exception as geo_error:
                             print(f"Ошибка получения геоданных для {server_data['host']}: {geo_error}")
-                            # Продолжаем без геоданных
                         
                         db.session.add(server)
                         added_count += 1
@@ -245,7 +223,6 @@ def upload_servers():
 
 @app.route('/validate', methods=['POST'])
 def validate_servers():
-    """Запуск валидации серверов с настройками потоков"""
     global validation_status, ssh_manager
     
     if validation_status['running']:
@@ -256,15 +233,13 @@ def validate_servers():
     threads = int(data.get('threads', 10))
     timeout = int(data.get('timeout', 15))
     
-    # Валидация настроек
-    threads = max(1, min(threads, 100))  # От 1 до 100 потоков
-    timeout = max(5, min(timeout, 60))   # От 5 до 60 секунд
+    threads = max(1, min(threads, 100))
+    timeout = max(5, min(timeout, 60))
     
     if not server_ids:
         servers = SSHServer.query.all()
         server_ids = [s.id for s in servers]
     
-    # Обновляем SSH Manager с новыми настройками
     ssh_manager = SSHManager(max_workers=threads, timeout=timeout)
     
     validation_status = {
@@ -281,13 +256,11 @@ def validate_servers():
     def validate_thread():
         global validation_status
         
-        # ВАЖНО: Создаем контекст приложения для фонового потока
-        with app.app_context():
-            try:
-                processed = 0
-                start_time = time.time()
-                
-                # Подготавливаем данные серверов для валидации
+        try:
+            processed = 0
+            start_time = time.time()
+            
+            with app.app_context():
                 batch_servers = []
                 for server_id in server_ids:
                     try:
@@ -310,24 +283,21 @@ def validate_servers():
                     return
                 
                 validation_status['total'] = len(batch_servers)
+            
+            def update_callback(result):
+                nonlocal processed
                 
-                # Функция обратного вызова для обновления прогресса
-                def update_callback(result):
-                    nonlocal processed
+                try:
+                    processed += 1
+                    validation_status['progress'] = processed
                     
-                    # ВАЖНО: Работаем в том же контексте приложения
-                    try:
-                        processed += 1
-                        validation_status['progress'] = processed
-                        
-                        # Обновляем оценку времени
-                        elapsed = time.time() - start_time
-                        if processed > 0:
-                            time_per_server = elapsed / processed
-                            remaining = validation_status['total'] - processed
-                            validation_status['estimated_time'] = remaining * time_per_server
-                        
-                        # Сохраняем результат в базе
+                    elapsed = time.time() - start_time
+                    if processed > 0:
+                        time_per_server = elapsed / processed
+                        remaining = validation_status['total'] - processed
+                        validation_status['estimated_time'] = remaining * time_per_server
+                    
+                    with app.app_context():
                         try:
                             server = SSHServer.query.get(result['server_id'])
                             if server:
@@ -335,11 +305,9 @@ def validate_servers():
                                 server.last_check = datetime.utcnow()
                                 server.last_error = result['error'] if not result['is_valid'] else None
                                 
-                                # Если получили системную информацию, сохраняем её
                                 if result.get('sys_info_collected') and result.get('sys_info'):
                                     sys_info = result['sys_info']
                                     
-                                    # Сохраняем системную информацию
                                     server.os_info = sys_info.get('os')
                                     server.cpu_info = sys_info.get('cpu')
                                     server.memory_info = sys_info.get('memory')
@@ -357,42 +325,39 @@ def validate_servers():
                         except Exception as db_error:
                             db.session.rollback()
                             print(f"Ошибка сохранения в БД для {result.get('host', 'unknown')}: {db_error}")
-                        
-                        validation_status['results'].append(result)
-                        
-                    except Exception as callback_error:
-                        print(f"Ошибка в callback: {callback_error}")
-                
-                # Выполняем валидацию батча
-                try:
-                    ssh_manager.validate_servers_batch(batch_servers, update_callback)
-                except Exception as batch_error:
-                    print(f"Ошибка обработки батча: {batch_error}")
                     
-                    # Обрабатываем серверы по одному в случае ошибки
-                    for server_data in batch_servers:
-                        if not validation_status['running']:
-                            break
-                        try:
-                            server_id, host, port, username, password = server_data
-                            is_valid, error = ssh_manager.test_connection(host, port, username, password)
-                            update_callback({
-                                'server_id': server_id,
-                                'host': host,
-                                'is_valid': is_valid,
-                                'error': error,
-                                'sys_info_collected': False
-                            })
-                        except Exception as single_error:
-                            print(f"Ошибка обработки сервера {server_data[0]}: {single_error}")
+                    validation_status['results'].append(result)
+                    
+                except Exception as callback_error:
+                    print(f"Ошибка в callback: {callback_error}")
+            
+            try:
+                ssh_manager.validate_servers_batch(batch_servers, update_callback)
+            except Exception as batch_error:
+                print(f"Ошибка обработки батча: {batch_error}")
                 
-            except Exception as thread_error:
-                print(f"Критическая ошибка в потоке валидации: {thread_error}")
-            finally:
-                validation_status['running'] = False
-                validation_status['estimated_time'] = 0
+                for server_data in batch_servers:
+                    if not validation_status['running']:
+                        break
+                    try:
+                        server_id, host, port, username, password = server_data
+                        is_valid, error = ssh_manager.test_connection(host, port, username, password)
+                        update_callback({
+                            'server_id': server_id,
+                            'host': host,
+                            'is_valid': is_valid,
+                            'error': error,
+                            'sys_info_collected': False
+                        })
+                    except Exception as single_error:
+                        print(f"Ошибка обработки сервера {server_data[0]}: {single_error}")
+            
+        except Exception as thread_error:
+            print(f"Критическая ошибка в потоке валидации: {thread_error}")
+        finally:
+            validation_status['running'] = False
+            validation_status['estimated_time'] = 0
     
-    # Запускаем поток валидации
     thread = threading.Thread(target=validate_thread)
     thread.daemon = True
     thread.start()
@@ -401,10 +366,8 @@ def validate_servers():
 
 @app.route('/validation_status')
 def validation_status_endpoint():
-    """Получение статуса валидации"""
     status_copy = validation_status.copy()
     
-    # Добавляем дополнительную информацию
     if status_copy['start_time']:
         elapsed = (datetime.now() - status_copy['start_time']).total_seconds()
         status_copy['elapsed_time'] = elapsed
@@ -413,7 +376,6 @@ def validation_status_endpoint():
             time_per_server = elapsed / status_copy['progress']
             status_copy['servers_per_second'] = round(status_copy['progress'] / elapsed, 2) if elapsed > 0 else 0
     
-    # Конвертируем datetime в строку для JSON
     if status_copy.get('start_time'):
         status_copy['start_time'] = status_copy['start_time'].isoformat()
     
@@ -421,7 +383,6 @@ def validation_status_endpoint():
 
 @app.route('/execute_command', methods=['POST'])
 def execute_command():
-    """Выполнение команды на серверах"""
     global command_status, ssh_manager
     
     if command_status['running']:
@@ -436,16 +397,14 @@ def execute_command():
     if not command:
         return jsonify({'error': 'Команда не указана'})
     
-    # Валидация настроек
-    threads = max(1, min(threads, 50))  # От 1 до 50 потоков для команд
-    timeout = max(5, min(timeout, 60))   # От 5 до 60 секунд
+    threads = max(1, min(threads, 50))
+    timeout = max(5, min(timeout, 60))
     
     if not server_ids:
-        # Если не указаны конкретные серверы, используем все валидные
-        servers = SSHServer.query.filter(SSHServer.is_valid == True).all()
-        server_ids = [s.id for s in servers]
+        with app.app_context():
+            servers = SSHServer.query.filter(SSHServer.is_valid == True).all()
+            server_ids = [s.id for s in servers]
     
-    # Обновляем SSH Manager с новыми настройками
     ssh_manager = SSHManager(max_workers=threads, timeout=timeout)
     
     command_status = {
@@ -462,13 +421,11 @@ def execute_command():
     def execute_thread():
         global command_status
         
-        # ВАЖНО: Создаем контекст приложения для фонового потока
-        with app.app_context():
-            try:
-                processed = 0
-                start_time = time.time()
-                
-                # Подготавливаем данные серверов
+        try:
+            processed = 0
+            start_time = time.time()
+            
+            with app.app_context():
                 servers_data = []
                 for server_id in server_ids:
                     try:
@@ -491,52 +448,48 @@ def execute_command():
                     return
                 
                 command_status['total'] = len(servers_data)
+            
+            def update_callback(result):
+                nonlocal processed
+                processed += 1
+                command_status['progress'] = processed
                 
-                def update_callback(result):
-                    nonlocal processed
-                    processed += 1
-                    command_status['progress'] = processed
-                    
-                    # Обновляем оценку времени
-                    elapsed = time.time() - start_time
-                    if processed > 0:
-                        time_per_server = elapsed / processed
-                        remaining = command_status['total'] - processed
-                        command_status['estimated_time'] = remaining * time_per_server
-                    
-                    command_status['results'].append(result)
+                elapsed = time.time() - start_time
+                if processed > 0:
+                    time_per_server = elapsed / processed
+                    remaining = command_status['total'] - processed
+                    command_status['estimated_time'] = remaining * time_per_server
                 
-                # Выполняем команды с обработкой ошибок
-                try:
-                    ssh_manager.execute_commands_batch(servers_data, command, update_callback)
-                except Exception as exec_error:
-                    print(f"Ошибка выполнения команд: {exec_error}")
-                    
-                    # Выполняем команды по одной если батч не работает
-                    for server_data in servers_data:
-                        if not command_status['running']:
-                            break
-                        try:
-                            server_id, host, port, username, password = server_data
-                            output, error = ssh_manager.execute_command(host, port, username, password, command)
-                            update_callback({
-                                'server_id': server_id,
-                                'host': host,
-                                'output': output,
-                                'error': error,
-                                'success': error is None,
-                                'processing_time': time.time() - start_time
-                            })
-                        except Exception as single_error:
-                            print(f"Ошибка выполнения команды на сервере {server_data[1]}: {single_error}")
+                command_status['results'].append(result)
+            
+            try:
+                ssh_manager.execute_commands_batch(servers_data, command, update_callback)
+            except Exception as exec_error:
+                print(f"Ошибка выполнения команд: {exec_error}")
                 
-            except Exception as thread_error:
-                print(f"Критическая ошибка в потоке выполнения команд: {thread_error}")
-            finally:
-                command_status['running'] = False
-                command_status['estimated_time'] = 0
+                for server_data in servers_data:
+                    if not command_status['running']:
+                        break
+                    try:
+                        server_id, host, port, username, password = server_data
+                        output, error = ssh_manager.execute_command(host, port, username, password, command)
+                        update_callback({
+                            'server_id': server_id,
+                            'host': host,
+                            'output': output,
+                            'error': error,
+                            'success': error is None,
+                            'processing_time': time.time() - start_time
+                        })
+                    except Exception as single_error:
+                        print(f"Ошибка выполнения команды на сервере {server_data[1]}: {single_error}")
+            
+        except Exception as thread_error:
+            print(f"Критическая ошибка в потоке выполнения команд: {thread_error}")
+        finally:
+            command_status['running'] = False
+            command_status['estimated_time'] = 0
     
-    # Запускаем поток выполнения команд
     thread = threading.Thread(target=execute_thread)
     thread.daemon = True
     thread.start()
@@ -545,10 +498,8 @@ def execute_command():
 
 @app.route('/command_status')
 def command_status_endpoint():
-    """Получение статуса выполнения команд"""
     status_copy = command_status.copy()
     
-    # Добавляем дополнительную информацию
     if status_copy['start_time']:
         elapsed = (datetime.now() - status_copy['start_time']).total_seconds()
         status_copy['elapsed_time'] = elapsed
@@ -556,7 +507,6 @@ def command_status_endpoint():
         if status_copy['progress'] > 0:
             status_copy['servers_per_second'] = round(status_copy['progress'] / elapsed, 2) if elapsed > 0 else 0
     
-    # Конвертируем datetime в строку для JSON
     if status_copy.get('start_time'):
         status_copy['start_time'] = status_copy['start_time'].isoformat()
     
@@ -564,7 +514,6 @@ def command_status_endpoint():
 
 @app.route('/update_system_info', methods=['POST'])
 def update_system_info():
-    """Обновление только системной информации без проверки доступности"""
     global command_status, ssh_manager
     
     if command_status['running']:
@@ -575,15 +524,14 @@ def update_system_info():
     threads = int(data.get('threads', 10))
     timeout = int(data.get('timeout', 20))
     
-    # Валидация настроек
     threads = max(1, min(threads, 50))
     timeout = max(10, min(timeout, 60))
     
     if not server_ids:
-        servers = SSHServer.query.filter(SSHServer.is_valid == True).all()
-        server_ids = [s.id for s in servers]
+        with app.app_context():
+            servers = SSHServer.query.filter(SSHServer.is_valid == True).all()
+            server_ids = [s.id for s in servers]
     
-    # Обновляем SSH Manager
     ssh_manager = SSHManager(max_workers=threads, timeout=timeout)
     
     command_status = {
@@ -600,28 +548,44 @@ def update_system_info():
     def system_info_thread():
         global command_status
         
-        # ВАЖНО: Создаем контекст приложения для фонового потока
-        with app.app_context():
-            try:
-                processed = 0
-                start_time = time.time()
+        try:
+            processed = 0
+            start_time = time.time()
+            
+            for i, server_id in enumerate(server_ids):
+                if not command_status['running']:
+                    break
                 
-                for i, server_id in enumerate(server_ids):
-                    if not command_status['running']:
-                        break
+                try:
+                    with app.app_context():
+                        server = SSHServer.query.get(server_id)
+                        if not (server and server.is_valid):
+                            command_status['results'].append({
+                                'server_id': server_id,
+                                'host': f'server_{server_id}',
+                                'success': False,
+                                'message': 'Сервер недоступен или не найден'
+                            })
+                            processed += 1
+                            command_status['progress'] = processed
+                            continue
+                        
+                        server_host = server.host
+                        server_port = server.port
+                        server_username = server.username
+                        server_password = server.password
+                    
+                    print(f"Обновление системной информации для {server_host}...")
                     
                     try:
-                        server = SSHServer.query.get(server_id)
-                        if server and server.is_valid:
-                            print(f"Обновление системной информации для {server.host}...")
-                            
-                            try:
-                                sys_info = ssh_manager.get_system_info(
-                                    server.host, server.port, server.username, server.password
-                                )
-                                
-                                # Обновляем системную информацию
-                                if 'error' not in sys_info:
+                        sys_info = ssh_manager.get_system_info(
+                            server_host, server_port, server_username, server_password
+                        )
+                        
+                        if 'error' not in sys_info:
+                            with app.app_context():
+                                server = SSHServer.query.get(server_id)
+                                if server:
                                     server.os_info = sys_info.get('os')
                                     server.cpu_info = sys_info.get('cpu')
                                     server.memory_info = sys_info.get('memory')
@@ -634,75 +598,65 @@ def update_system_info():
                                     server.disk_usage_percent = sys_info.get('disk_usage_percent')
                                     server.cpu_cores = sys_info.get('cpu_cores')
                                     
-                                    command_status['results'].append({
-                                        'server_id': server_id,
-                                        'host': server.host,
-                                        'success': True,
-                                        'message': 'Системная информация обновлена'
-                                    })
-                                else:
-                                    command_status['results'].append({
-                                        'server_id': server_id,
-                                        'host': server.host,
-                                        'success': False,
-                                        'message': sys_info.get('error', 'Неизвестная ошибка')
-                                    })
-                                
-                                try:
-                                    db.session.commit()
-                                    print(f"✅ Информация обновлена для {server.host}")
-                                except Exception as commit_error:
-                                    db.session.rollback()
-                                    print(f"Ошибка сохранения для {server.host}: {commit_error}")
-                                    command_status['results'].append({
-                                        'server_id': server_id,
-                                        'host': server.host,
-                                        'success': False,
-                                        'message': f'Ошибка сохранения: {commit_error}'
-                                    })
-                            
-                            except Exception as sys_error:
-                                print(f"Ошибка получения системной информации для {server.host}: {sys_error}")
-                                command_status['results'].append({
-                                    'server_id': server_id,
-                                    'host': server.host,
-                                    'success': False,
-                                    'message': str(sys_error)
-                                })
+                                    try:
+                                        db.session.commit()
+                                        print(f"✅ Информация обновлена для {server_host}")
+                                        command_status['results'].append({
+                                            'server_id': server_id,
+                                            'host': server_host,
+                                            'success': True,
+                                            'message': 'Системная информация обновлена'
+                                        })
+                                    except Exception as commit_error:
+                                        db.session.rollback()
+                                        print(f"Ошибка сохранения для {server_host}: {commit_error}")
+                                        command_status['results'].append({
+                                            'server_id': server_id,
+                                            'host': server_host,
+                                            'success': False,
+                                            'message': f'Ошибка сохранения: {commit_error}'
+                                        })
                         else:
                             command_status['results'].append({
                                 'server_id': server_id,
-                                'host': f'server_{server_id}',
+                                'host': server_host,
                                 'success': False,
-                                'message': 'Сервер недоступен или не найден'
+                                'message': sys_info.get('error', 'Неизвестная ошибка')
                             })
                     
-                    except Exception as server_error:
-                        print(f"Ошибка обработки сервера {server_id}: {server_error}")
+                    except Exception as sys_error:
+                        print(f"Ошибка получения системной информации для {server_host}: {sys_error}")
                         command_status['results'].append({
                             'server_id': server_id,
-                            'host': f'server_{server_id}',
+                            'host': server_host,
                             'success': False,
-                            'message': str(server_error)
+                            'message': str(sys_error)
                         })
-                    
-                    processed += 1
-                    command_status['progress'] = processed
-                    
-                    # Обновляем оценку времени
-                    elapsed = time.time() - start_time
-                    if processed > 0:
-                        time_per_server = elapsed / processed
-                        remaining = command_status['total'] - processed
-                        command_status['estimated_time'] = remaining * time_per_server
                 
-            except Exception as thread_error:
-                print(f"Критическая ошибка в потоке системной информации: {thread_error}")
-            finally:
-                command_status['running'] = False
-                command_status['estimated_time'] = 0
+                except Exception as server_error:
+                    print(f"Ошибка обработки сервера {server_id}: {server_error}")
+                    command_status['results'].append({
+                        'server_id': server_id,
+                        'host': f'server_{server_id}',
+                        'success': False,
+                        'message': str(server_error)
+                    })
+                
+                processed += 1
+                command_status['progress'] = processed
+                
+                elapsed = time.time() - start_time
+                if processed > 0:
+                    time_per_server = elapsed / processed
+                    remaining = command_status['total'] - processed
+                    command_status['estimated_time'] = remaining * time_per_server
+            
+        except Exception as thread_error:
+            print(f"Критическая ошибка в потоке системной информации: {thread_error}")
+        finally:
+            command_status['running'] = False
+            command_status['estimated_time'] = 0
     
-    # Запускаем поток получения системной информации
     thread = threading.Thread(target=system_info_thread)
     thread.daemon = True
     thread.start()
@@ -711,13 +665,11 @@ def update_system_info():
 
 @app.route('/clear_errors', methods=['POST'])
 def clear_errors():
-    """Очистка ошибок серверов"""
     data = request.json or {}
     action = data.get('action', 'clear_all')
     
     try:
         if action == 'clear_all':
-            # Очищаем все ошибки и сбрасываем статус
             servers = SSHServer.query.all()
             for server in servers:
                 server.is_valid = None
@@ -731,7 +683,6 @@ def clear_errors():
             })
             
         elif action == 'clear_server':
-            # Очищаем ошибки для конкретного сервера
             server_id = data.get('server_id')
             if not server_id:
                 return jsonify({'success': False, 'error': 'Не указан ID сервера'})
@@ -751,7 +702,6 @@ def clear_errors():
             })
             
         elif action == 'clear_invalid':
-            # Очищаем только недоступные серверы
             servers = SSHServer.query.filter(SSHServer.is_valid == False).all()
             for server in servers:
                 server.is_valid = None
@@ -773,7 +723,6 @@ def clear_errors():
 
 @app.route('/stop_operation', methods=['POST'])
 def stop_operation():
-    """Остановка текущей операции"""
     global validation_status, command_status
     
     operation = request.json.get('operation')
@@ -787,13 +736,11 @@ def stop_operation():
 
 @app.route('/server/<int:server_id>')
 def server_detail(server_id):
-    """Детальная информация о сервере"""
     server = SSHServer.query.get_or_404(server_id)
     return render_template('server_detail.html', server=server)
 
 @app.route('/delete_server/<int:server_id>', methods=['POST'])
 def delete_server(server_id):
-    """Удаление сервера"""
     server = SSHServer.query.get_or_404(server_id)
     db.session.delete(server)
     db.session.commit()
@@ -802,7 +749,6 @@ def delete_server(server_id):
 
 @app.route('/api/servers')
 def api_servers():
-    """API для получения списка серверов"""
     servers = SSHServer.query.all()
     return jsonify([{
         'id': s.id,
@@ -817,14 +763,10 @@ def api_servers():
 
 @app.route('/settings', methods=['GET', 'POST'])
 def settings():
-    """Страница настроек приложения"""
     if request.method == 'POST':
-        # Обработка сохранения настроек
         data = request.json
-        # Здесь можно сохранить настройки в файл или базу данных
         return jsonify({'success': True})
     
-    # Возвращаем текущие настройки
     current_settings = {
         'default_threads': 10,
         'default_timeout': 15,
@@ -836,11 +778,8 @@ def settings():
 
 @app.route('/errors')
 def error_monitoring():
-    """Страница мониторинга ошибок"""
-    # Получаем статистику ошибок из базы данных
     error_servers = SSHServer.query.filter(SSHServer.is_valid == False).all()
     
-    # Группируем ошибки по типам
     error_types = {}
     for server in error_servers:
         if server.last_error:
@@ -852,7 +791,6 @@ def error_monitoring():
                          error_types=error_types)
 
 def classify_error(error_message):
-    """Классификация ошибок по типам"""
     error_msg = error_message.lower()
     
     if 'banner' in error_msg or 'protocol' in error_msg:
@@ -870,7 +808,6 @@ def classify_error(error_message):
 
 @app.route('/api/error_stats')
 def api_error_stats():
-    """API для получения статистики ошибок"""
     error_servers = SSHServer.query.filter(SSHServer.is_valid == False).all()
     
     stats = {

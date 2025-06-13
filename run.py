@@ -1,14 +1,9 @@
 #!/usr/bin/env python3
-"""
-SSH Manager - Скрипт запуска приложения
-Исправленная версия для новых версий SQLAlchemy
-"""
 
 import os
 import sys
 from pathlib import Path
 
-# Добавляем корневую директорию в PATH
 sys.path.insert(0, str(Path(__file__).parent))
 
 try:
@@ -20,7 +15,6 @@ except ImportError as e:
     sys.exit(1)
 
 def load_env():
-    """Загрузка переменных окружения из .env файла"""
     env_file = Path('.env')
     if env_file.exists():
         try:
@@ -35,10 +29,8 @@ def load_env():
         print("ℹ️  Файл .env не найден. Используются значения по умолчанию.")
 
 def check_database():
-    """Проверка и инициализация базы данных"""
     with app.app_context():
         try:
-            # Проверяем подключение к БД (исправленная версия)
             from sqlalchemy import text
             result = db.session.execute(text('SELECT 1')).scalar()
             
@@ -46,7 +38,6 @@ def check_database():
                 print("❌ Проблема с подключением к базе данных")
                 return False
             
-            # Проверяем существование таблиц (исправленная версия)
             try:
                 from sqlalchemy import inspect
                 inspector = inspect(db.engine)
@@ -77,7 +68,6 @@ def check_database():
     return True
 
 def show_config_info():
-    """Показать информацию о конфигурации"""
     config_name = os.environ.get('FLASK_CONFIG', 'default')
     debug_mode = app.config.get('DEBUG', False)
     db_uri = app.config.get('SQLALCHEMY_DATABASE_URI', 'не настроена')
@@ -93,7 +83,6 @@ def show_config_info():
     print("="*50)
 
 def check_dependencies():
-    """Проверка установленных зависимостей"""
     required_packages = ['flask', 'flask_sqlalchemy', 'paramiko', 'requests']
     missing_packages = []
     
@@ -111,7 +100,6 @@ def check_dependencies():
     return True
 
 def create_directories():
-    """Создание необходимых директорий"""
     directories = ['uploads', 'database', 'logs']
     
     for directory in directories:
@@ -121,27 +109,20 @@ def create_directories():
             print(f"📁 Создана директория: {directory}")
 
 def main():
-    """Главная функция запуска"""
     print("🚀 Запуск SSH Manager...")
     
-    # Проверяем зависимости
     if not check_dependencies():
         sys.exit(1)
     
-    # Создаем необходимые директории
     create_directories()
     
-    # Загружаем переменные окружения
     load_env()
     
-    # Показываем информацию о конфигурации
     show_config_info()
     
-    # Проверяем базу данных
     if not check_database():
         sys.exit(1)
     
-    # Получаем настройки запуска
     host = os.environ.get('FLASK_HOST', '127.0.0.1')
     port = int(os.environ.get('FLASK_PORT', 5000))
     debug = app.config.get('DEBUG', False)
@@ -156,7 +137,6 @@ def main():
     print("="*50)
     
     try:
-        # Запускаем приложение
         app.run(
             host=host,
             port=port,

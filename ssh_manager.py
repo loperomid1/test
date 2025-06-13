@@ -7,12 +7,10 @@ import os
 from typing import List, Tuple, Dict, Optional, Callable
 import logging
 
-# Настройка логирования
 logging.getLogger("paramiko").setLevel(logging.WARNING)
 paramiko.util.log_to_file(os.devnull)
 
 class SSHManager:
-    """Улучшенный класс для управления SSH соединениями с надежной обработкой ошибок"""
     
     def __init__(self, max_workers=20, timeout=15):
         self.max_workers = max_workers
@@ -27,14 +25,12 @@ class SSHManager:
             'last_update': None
         }
         
-        # Улучшенные настройки для надежности (как в вашем скрипте)
-        self.retry_attempts = 1  # Убираем лишние попытки
-        self.banner_timeout = 10  # Увеличиваем banner timeout
-        self.auth_timeout = 10    # Увеличиваем auth timeout
+        self.retry_attempts = 1
+        self.banner_timeout = 10
+        self.auth_timeout = 10
         self.connect_timeout = timeout
     
     def check_port_open(self, host: str, port: int = 22, timeout: int = 5) -> bool:
-        """Проверяет открыт ли порт на хосте (как в вашем скрипте)"""
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.settimeout(timeout)
@@ -45,13 +41,6 @@ class SSHManager:
             return False
     
     def test_connection(self, host: str, port: int, username: str, password: str) -> Tuple[bool, Optional[str]]:
-        """
-        Тестирование SSH соединения с логикой из вашего скрипта
-        
-        Returns:
-            tuple: (is_valid: bool, error_message: str or None)
-        """
-        # Сначала проверяем порт (как в вашем скрипте)
         if not self.check_port_open(host, port, timeout=5):
             return False, "Порт закрыт или недоступен"
         
@@ -60,7 +49,6 @@ class SSHManager:
             client = paramiko.SSHClient()
             client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
             
-            # Настройки подключения как в вашем скрипте
             client.connect(
                 hostname=host,
                 port=port,
@@ -73,7 +61,6 @@ class SSHManager:
                 allow_agent=False
             )
             
-            # Быстрый тест выполнения команды (как в вашем скрипте)
             stdin, stdout, stderr = client.exec_command('echo "test"', timeout=10)
             result = stdout.read().decode('utf-8', errors='ignore').strip()
             stderr_output = stderr.read().decode('utf-8', errors='ignore').strip()
@@ -136,13 +123,6 @@ class SSHManager:
         return False, "Не удалось подключиться"
     
     def execute_command(self, host: str, port: int, username: str, password: str, command: str) -> Tuple[str, Optional[str]]:
-        """
-        Выполнение команды на удаленном сервере
-        
-        Returns:
-            tuple: (output: str, error: str or None)
-        """
-        # Сначала проверяем порт
         if not self.check_port_open(host, port, timeout=5):
             return "", "Порт закрыт или недоступен"
         
@@ -163,15 +143,12 @@ class SSHManager:
                 allow_agent=False
             )
             
-            # Выполняем команду с расширенным таймаутом
             command_timeout = max(30, self.timeout * 2)
             stdin, stdout, stderr = client.exec_command(command, timeout=command_timeout)
             
-            # Читаем результат
             output = stdout.read().decode('utf-8', errors='ignore').strip()
             error_output = stderr.read().decode('utf-8', errors='ignore').strip()
             
-            # Получаем код возврата
             exit_status = stdout.channel.recv_exit_status()
             
             if exit_status == 0:
@@ -192,12 +169,6 @@ class SSHManager:
                     pass
     
     def get_system_info(self, host: str, port: int, username: str, password: str) -> Dict:
-        """
-        Получение информации о системе (адаптировано из вашего скрипта)
-        
-        Returns:
-            dict: Словарь с информацией о системе
-        """
         info = {
             'os': None,
             'cpu': None,
@@ -213,7 +184,6 @@ class SSHManager:
             'connection_test': None
         }
         
-        # Сначала проверяем базовое подключение
         is_valid, error = self.test_connection(host, port, username, password)
         info['connection_test'] = {'valid': is_valid, 'error': error}
         
@@ -238,7 +208,6 @@ class SSHManager:
                 allow_agent=False
             )
             
-            # Функция безопасного выполнения команд (из вашего скрипта)
             def safe_exec_command(command, timeout=3):
                 try:
                     stdin, stdout, stderr = client.exec_command(command, timeout=timeout)
@@ -247,27 +216,23 @@ class SSHManager:
                 except:
                     return None
             
-            # Команды для определения ядер процессора (из вашего скрипта)
             cpu_commands = [
                 'nproc',
                 'grep -c ^processor /proc/cpuinfo',
                 'sysctl -n hw.ncpu'
             ]
             
-            # Команды для определения памяти (из вашего скрипта)
             memory_commands = [
                 'free -h | grep ^Mem | awk \'{print $2}\'',
                 'cat /proc/meminfo | grep MemTotal | awk \'{print $2 " " $3}\'',
                 'sysctl -n hw.memsize | awk \'{print int($1/1024/1024/1024) "G"}\''
             ]
             
-            # Команды для определения диска (из вашего скрипта)
             disk_commands = [
                 'df -h / | tail -1 | awk \'{print $2 " " $5}\'',
                 'lsblk | grep disk | head -1 | awk \'{print $4}\''
             ]
             
-            # Дополнительные команды
             additional_commands = {
                 'os': 'cat /etc/os-release 2>/dev/null | head -1 | cut -d= -f2 | tr -d \'"\'|| uname -s 2>/dev/null || echo "Unknown"',
                 'kernel': 'uname -r 2>/dev/null || echo "Unknown"',
@@ -275,7 +240,6 @@ class SSHManager:
                 'uptime': 'uptime 2>/dev/null | awk \'{print $3 " " $4}\' | sed \'s/,//\' || echo "Unknown"'
             }
             
-            # Определяем количество ядер (логика из вашего скрипта)
             for cmd in cpu_commands:
                 result = safe_exec_command(cmd)
                 if result and result.isdigit():
@@ -285,7 +249,6 @@ class SSHManager:
                         info['cpu'] = f"{cores} cores"
                         break
             
-            # Определяем память (логика из вашего скрипта)
             for cmd in memory_commands:
                 result = safe_exec_command(cmd)
                 if result:
@@ -302,12 +265,10 @@ class SSHManager:
                             info['total_memory_mb'] = int(gb * 1024)
                             break
             
-            # Определяем диск (логика из вашего скрипта)
             for cmd in disk_commands:
                 result = safe_exec_command(cmd)
                 if result and any(unit in result for unit in ['G', 'T', 'M']):
                     info['disk'] = result
-                    # Пытаемся извлечь процент использования
                     parts = result.split()
                     for part in parts:
                         if '%' in part:
@@ -318,7 +279,6 @@ class SSHManager:
                                 pass
                     break
             
-            # Выполняем дополнительные команды
             for key, command in additional_commands.items():
                 try:
                     result = safe_exec_command(command, timeout=5)
@@ -339,16 +299,6 @@ class SSHManager:
         return info
     
     def validate_servers_batch(self, servers: List[Tuple], callback: Optional[Callable] = None) -> List[Dict]:
-        """
-        Валидация серверов в пакетном режиме (адаптировано под логику вашего скрипта)
-        
-        Args:
-            servers: список серверов для валидации (server_id, host, port, username, password)
-            callback: функция обратного вызова для обновления прогресса
-        
-        Returns:
-            list: результаты валидации
-        """
         results = []
         self.stats['start_time'] = time.time()
         self.stats['total_processed'] = 0
@@ -360,7 +310,6 @@ class SSHManager:
             start_time = time.time()
             
             try:
-                # Проверяем подключение (используя улучшенную логику)
                 is_valid, error = self.test_connection(host, port, username, password)
                 
                 result = {
@@ -372,7 +321,6 @@ class SSHManager:
                     'sys_info_collected': False
                 }
                 
-                # Если сервер доступен, получаем системную информацию
                 if is_valid:
                     try:
                         sys_info = self.get_system_info(host, port, username, password)
@@ -382,7 +330,6 @@ class SSHManager:
                     except Exception as sys_error:
                         print(f"Ошибка получения системной информации для {host}: {sys_error}")
                 
-                # Обновляем статистику
                 with self.lock:
                     self.stats['total_processed'] += 1
                     if is_valid:
@@ -416,12 +363,9 @@ class SSHManager:
                 
                 return result
         
-        # Используем ThreadPoolExecutor для контролируемой многопоточности
         with ThreadPoolExecutor(max_workers=self.max_workers, thread_name_prefix="SSH-Validator") as executor:
-            # Отправляем все задачи
             future_to_server = {executor.submit(validate_single, server): server for server in servers}
             
-            # Собираем результаты по мере готовности
             for future in as_completed(future_to_server):
                 try:
                     result = future.result()
@@ -443,17 +387,6 @@ class SSHManager:
         return results
     
     def execute_commands_batch(self, servers: List[Tuple], command: str, callback: Optional[Callable] = None) -> List[Dict]:
-        """
-        Выполнение команды на нескольких серверах
-        
-        Args:
-            servers: список серверов (server_id, host, port, username, password)
-            command: команда для выполнения
-            callback: функция обратного вызова
-        
-        Returns:
-            list: результаты выполнения
-        """
         results = []
         self.stats['start_time'] = time.time()
         self.stats['total_processed'] = 0
@@ -476,7 +409,6 @@ class SSHManager:
                     'processing_time': time.time() - start_time
                 }
                 
-                # Обновляем статистику
                 with self.lock:
                     self.stats['total_processed'] += 1
                     if error is None:
@@ -510,12 +442,9 @@ class SSHManager:
                 
                 return result
         
-        # Используем ThreadPoolExecutor для контролируемой многопоточности
         with ThreadPoolExecutor(max_workers=self.max_workers, thread_name_prefix="SSH-Commander") as executor:
-            # Отправляем все задачи
             future_to_server = {executor.submit(execute_single, server): server for server in servers}
             
-            # Собираем результаты по мере готовности
             for future in as_completed(future_to_server):
                 try:
                     result = future.result()
@@ -537,12 +466,6 @@ class SSHManager:
         return results
     
     def get_performance_stats(self) -> Dict:
-        """
-        Получение статистики производительности
-        
-        Returns:
-            dict: статистика производительности
-        """
         with self.lock:
             stats = self.stats.copy()
         
@@ -563,7 +486,6 @@ class SSHManager:
         return stats
     
     def reset_stats(self):
-        """Сброс статистики"""
         with self.lock:
             self.stats = {
                 'total_processed': 0,
@@ -574,7 +496,6 @@ class SSHManager:
             }
     
     def close_all_connections(self):
-        """Закрытие всех активных соединений"""
         with self.lock:
             for connection in self.active_connections.values():
                 try:
@@ -584,5 +505,4 @@ class SSHManager:
             self.active_connections.clear()
     
     def __del__(self):
-        """Деструктор - закрываем все соединения"""
         self.close_all_connections()
