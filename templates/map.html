@@ -4,61 +4,245 @@
 
 {% block content %}
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-    <h1 class="h2"><i class="fas fa-map me-2"></i>Карта серверов</h1>
+    <h1 class="h2 text-gradient">
+        <i class="fas fa-map-marked-alt me-2"></i>Карта серверов
+    </h1>
     <div class="btn-toolbar mb-2 mb-md-0">
-        <div class="btn-group me-2">
-            <button type="button" class="btn btn-outline-primary" onclick="refreshMap()">
+        <div class="btn-group-modern me-2">
+            <button type="button" class="btn btn-outline-primary hover-lift" onclick="refreshMap()">
                 <i class="fas fa-sync-alt me-1"></i> Обновить
             </button>
-            <button type="button" class="btn btn-outline-success" onclick="fitAllMarkers()">
-                <i class="fas fa-expand me-1"></i> Показать все
+            <button type="button" class="btn btn-outline-success hover-scale" onclick="fitAllMarkers()">
+                <i class="fas fa-expand-arrows-alt me-1"></i> Показать все
+            </button>
+            <button type="button" class="btn btn-outline-info hover-glow" onclick="toggleHeatmap()">
+                <i class="fas fa-fire me-1"></i> Тепловая карта
+            </button>
+        </div>
+        <div class="btn-group-modern">
+            <button type="button" class="btn btn-outline-secondary" onclick="toggleSatellite()">
+                <i class="fas fa-satellite me-1"></i> Спутник
             </button>
         </div>
     </div>
 </div>
 
-<div class="card mb-3">
-    <div class="card-body py-2">
+<!-- Map Legend and Controls -->
+<div class="card card-tech mb-3 animate-slide-in-top">
+    <div class="card-body py-3">
         <div class="row align-items-center">
             <div class="col-md-8">
-                <div class="d-flex align-items-center">
-                    <span class="me-3"><strong>Легенда:</strong></span>
-                    <span class="me-3">
-                        <i class="fas fa-circle text-success me-1"></i>Доступные
+                <div class="d-flex align-items-center flex-wrap gap-4">
+                    <span class="fw-semibold text-gradient">
+                        <i class="fas fa-map-signs me-2"></i>Легенда:
                     </span>
-                    <span class="me-3">
-                        <i class="fas fa-circle text-danger me-1"></i>Недоступные
-                    </span>
-                    <span class="me-3">
-                        <i class="fas fa-circle text-warning me-1"></i>Не проверены
-                    </span>
+                    <div class="d-flex align-items-center">
+                        <div class="marker-legend marker-valid me-2"></div>
+                        <span class="small">Доступные серверы</span>
+                    </div>
+                    <div class="d-flex align-items-center">
+                        <div class="marker-legend marker-invalid me-2"></div>
+                        <span class="small">Недоступные серверы</span>
+                    </div>
+                    <div class="d-flex align-items-center">
+                        <div class="marker-legend marker-unchecked me-2"></div>
+                        <span class="small">Не проверены</span>
+                    </div>
+                    <div class="d-flex align-items-center">
+                        <div class="marker-legend marker-cluster me-2"></div>
+                        <span class="small">Группа серверов</span>
+                    </div>
                 </div>
             </div>
             <div class="col-md-4 text-end">
-                <span class="text-muted">Серверов на карте: <strong>{{ servers|length }}</strong></span>
+                <div class="d-flex align-items-center justify-content-end gap-3">
+                    <span class="text-muted small">
+                        <i class="fas fa-server me-1"></i>
+                        Серверов на карте: <strong class="text-primary">{{ servers|length }}</strong>
+                    </span>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="autoRefresh">
+                        <label class="form-check-label small text-muted" for="autoRefresh">
+                            Автообновление
+                        </label>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
 {% if servers|length > 0 %}
-<div class="card">
-    <div class="card-body p-0">
-        <div id="map" style="height: 70vh; min-height: 500px;"></div>
+<!-- Main Map Container -->
+<div class="card card-tech animate-slide-in-bottom">
+    <div class="card-body p-0 position-relative">
+        <!-- Map Loading Overlay -->
+        <div class="map-loading-overlay" id="mapLoading">
+            <div class="text-center">
+                <div class="loading-spinner-dots mb-3">
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <h6 class="text-muted">Загрузка карты...</h6>
+                <small class="text-muted">Инициализация {{ servers|length }} серверов</small>
+            </div>
+        </div>
+        
+        <!-- Map Container -->
+        <div id="map" class="modern-map"></div>
+        
+        <!-- Map Controls Overlay -->
+        <div class="map-controls">
+            <div class="map-control-group">
+                <button class="btn btn-sm btn-outline-primary glass-card" onclick="locateUser()" 
+                        data-bs-toggle="tooltip" title="Найти мое местоположение">
+                    <i class="fas fa-location-arrow"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-info glass-card" onclick="showMapFilters()"
+                        data-bs-toggle="tooltip" title="Фильтры карты">
+                    <i class="fas fa-filter"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-success glass-card" onclick="exportMapData()"
+                        data-bs-toggle="tooltip" title="Экспорт данных">
+                    <i class="fas fa-download"></i>
+                </button>
+            </div>
+            
+            <!-- Status Filter -->
+            <div class="map-status-filter mt-2">
+                <div class="btn-group-vertical btn-group-sm">
+                    <input type="checkbox" class="btn-check" id="showValid" checked>
+                    <label class="btn btn-outline-success glass-card" for="showValid">
+                        <i class="fas fa-check-circle"></i>
+                    </label>
+                    
+                    <input type="checkbox" class="btn-check" id="showInvalid" checked>
+                    <label class="btn btn-outline-danger glass-card" for="showInvalid">
+                        <i class="fas fa-times-circle"></i>
+                    </label>
+                    
+                    <input type="checkbox" class="btn-check" id="showUnchecked" checked>
+                    <label class="btn btn-outline-warning glass-card" for="showUnchecked">
+                        <i class="fas fa-question-circle"></i>
+                    </label>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Map Stats Overlay -->
+        <div class="map-stats glass-card">
+            <div class="stats-row">
+                <div class="stat-item">
+                    <span class="stat-value text-success" id="validCount">0</span>
+                    <span class="stat-label">Доступных</span>
+                </div>
+                <div class="stat-divider"></div>
+                <div class="stat-item">
+                    <span class="stat-value text-danger" id="invalidCount">0</span>
+                    <span class="stat-label">Недоступных</span>
+                </div>
+                <div class="stat-divider"></div>
+                <div class="stat-item">
+                    <span class="stat-value text-warning" id="uncheckedCount">0</span>
+                    <span class="stat-label">Не проверены</span>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
+
+<!-- Server Details Sidebar -->
+<div class="server-details-sidebar glass-card" id="serverDetailsSidebar">
+    <div class="sidebar-header">
+        <h6 class="mb-0 text-gradient">Информация о сервере</h6>
+        <button class="btn btn-sm btn-outline-secondary" onclick="closeServerDetails()">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+    <div class="sidebar-content" id="serverDetailsContent">
+        <!-- Server details will be populated here -->
+    </div>
+</div>
+
 {% else %}
-<div class="card">
-    <div class="card-body text-center py-5">
-        <i class="fas fa-map fa-3x text-muted mb-3"></i>
-        <h5 class="text-muted">Нет серверов с геоданными</h5>
-        <p class="text-muted">Загрузите серверы и получите их геолокацию для отображения на карте</p>
-        <a href="{{ url_for('upload_servers') }}" class="btn btn-primary">
-            <i class="fas fa-upload me-2"></i>Загрузить серверы
+<!-- Empty State -->
+<div class="card card-tech text-center py-5 animate-fade-in">
+    <div class="card-body">
+        <div class="hologram-effect mb-4">
+            <i class="fas fa-map fa-4x text-muted"></i>
+        </div>
+        <h5 class="text-muted mb-3">Нет серверов с геоданными</h5>
+        <p class="text-muted mb-4">Загрузите серверы и получите их геолокацию для отображения на карте</p>
+        <a href="{{ url_for('upload_servers') }}" class="btn btn-gradient btn-lg hover-lift">
+            <i class="fas fa-cloud-upload-alt me-2"></i>Загрузить серверы
         </a>
     </div>
 </div>
 {% endif %}
+
+<!-- Map Filters Modal -->
+<div class="modal fade" id="mapFiltersModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title text-gradient">
+                    <i class="fas fa-filter me-2"></i>Фильтры карты
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="text-gradient mb-3">Страны</h6>
+                        <div id="countryFilters" class="max-height-200 overflow-auto">
+                            <!-- Country checkboxes will be populated here -->
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="text-gradient mb-3">Операционные системы</h6>
+                        <div id="osFilters" class="max-height-200 overflow-auto">
+                            <!-- OS checkboxes will be populated here -->
+                        </div>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="text-gradient mb-3">Дата последней проверки</h6>
+                        <select class="form-select" id="dateFilter">
+                            <option value="all">Все даты</option>
+                            <option value="today">Сегодня</option>
+                            <option value="week">На этой неделе</option>
+                            <option value="month">В этом месяце</option>
+                            <option value="never">Никогда не проверялись</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="text-gradient mb-3">Кластеризация</h6>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="enableClustering" checked>
+                            <label class="form-check-label" for="enableClustering">
+                                Группировать близкие серверы
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-outline-warning" onclick="resetMapFilters()">
+                    <i class="fas fa-undo me-1"></i>Сбросить
+                </button>
+                <button type="button" class="btn btn-gradient" onclick="applyMapFilters()">
+                    <i class="fas fa-check me-1"></i>Применить
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -66,22 +250,81 @@
 <script>
     let map;
     let markers = [];
+    let markerClusterGroup;
+    let heatmapLayer;
+    let currentTileLayer;
+    let isHeatmapMode = false;
+    let isSatelliteMode = false;
 
     const serversData = {{ servers | tojson | safe }};
 
+    // Map initialization
     function initMap() {
-        map = L.map('map').setView([40.0, 0.0], 2);
+        // Hide loading overlay after a delay
+        setTimeout(() => {
+            document.getElementById('mapLoading').style.display = 'none';
+        }, 1000);
 
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors',
-            maxZoom: 18
+        // Initialize map
+        map = L.map('map', {
+            zoomControl: false,
+            attributionControl: true
+        }).setView([40.0, 0.0], 2);
+
+        // Add zoom control to top-right
+        L.control.zoom({
+            position: 'topright'
         }).addTo(map);
 
+        // Add tile layers
+        const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 18
+        });
+
+        const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: '© Esri, DigitalGlobe, GeoEye, Earthstar Geographics, CNES/Airbus DS, USDA, USGS, AeroGRID, IGN, and the GIS User Community',
+            maxZoom: 18
+        });
+
+        currentTileLayer = osmLayer;
+        currentTileLayer.addTo(map);
+
+        // Initialize marker cluster group
+        markerClusterGroup = L.markerClusterGroup({
+            chunkedLoading: true,
+            spiderfyOnMaxZoom: true,
+            showCoverageOnHover: false,
+            zoomToBoundsOnClick: true,
+            iconCreateFunction: function(cluster) {
+                const count = cluster.getChildCount();
+                let className = 'marker-cluster marker-cluster-';
+                
+                if (count < 10) {
+                    className += 'small';
+                } else if (count < 100) {
+                    className += 'medium';
+                } else {
+                    className += 'large';
+                }
+
+                return L.divIcon({
+                    html: `<div><span>${count}</span></div>`,
+                    className: className,
+                    iconSize: new L.Point(40, 40)
+                });
+            }
+        });
+
         addMarkers();
+        updateMapStats();
 
         if (markers.length > 0) {
             fitAllMarkers();
         }
+
+        // Setup auto-refresh
+        setupAutoRefresh();
     }
 
     function addMarkers() {
@@ -89,79 +332,201 @@
             if (server.latitude && server.longitude) {
                 const marker = createMarker(server);
                 markers.push(marker);
+                markerClusterGroup.addLayer(marker);
             }
         });
+
+        map.addLayer(markerClusterGroup);
     }
 
     function createMarker(server) {
-        let markerColor = 'gray';
+        let markerColor = '#6c757d';
+        let statusClass = 'unchecked';
         
         if (server.is_valid === true) {
-            markerColor = 'green';
+            markerColor = '#28a745';
+            statusClass = 'valid';
         } else if (server.is_valid === false) {
-            markerColor = 'red';
+            markerColor = '#dc3545';
+            statusClass = 'invalid';
         } else {
-            markerColor = 'orange';
+            markerColor = '#ffc107';
+            statusClass = 'unchecked';
         }
 
         const customIcon = L.divIcon({
             className: 'custom-marker',
-            html: `<div style="
-                background-color: ${markerColor};
-                width: 20px;
-                height: 20px;
-                border-radius: 50%;
-                border: 2px solid white;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                color: white;
-                font-size: 10px;
-            "><i class="fas fa-server"></i></div>`,
-            iconSize: [24, 24],
-            iconAnchor: [12, 12],
-            popupAnchor: [0, -12]
+            html: `<div class="marker-pin marker-${statusClass}">
+                <div class="marker-icon">
+                    <i class="fas fa-server"></i>
+                </div>
+                <div class="marker-pulse"></div>
+            </div>`,
+            iconSize: [30, 40],
+            iconAnchor: [15, 40],
+            popupAnchor: [0, -40]
         });
 
         const marker = L.marker([server.latitude, server.longitude], {
             icon: customIcon
-        }).addTo(map);
+        });
 
-        const popupContent = `
-            <div class="server-popup">
-                <h6 class="mb-2"><strong>${server.host}</strong></h6>
-                <div class="mb-1"><small><strong>Порт:</strong> ${server.port}</small></div>
-                ${server.country ? `<div class="mb-1"><small><strong>Страна:</strong> ${server.country}</small></div>` : ''}
-                ${server.city ? `<div class="mb-1"><small><strong>Город:</strong> ${server.city}</small></div>` : ''}
-                <div class="mb-2">
-                    <small><strong>Статус:</strong></small>
-                    ${getStatusBadge(server.is_valid)}
-                </div>
-                <div class="d-grid gap-1">
-                    <button class="btn btn-sm btn-success" onclick="validateServers([${server.id}])">
-                        <i class="fas fa-check me-1"></i>Проверить
-                    </button>
-                </div>
-            </div>
-        `;
-
+        // Create popup content
+        const popupContent = createPopupContent(server);
         marker.bindPopup(popupContent, {
-            maxWidth: 250,
+            maxWidth: 300,
             className: 'custom-popup'
         });
+
+        // Add click handler for sidebar
+        marker.on('click', () => {
+            showServerDetails(server);
+        });
+
+        // Store server data
+        marker.serverData = server;
 
         return marker;
     }
 
+    function createPopupContent(server) {
+        return `
+            <div class="server-popup">
+                <div class="popup-header">
+                    <h6 class="mb-1 text-gradient">${server.host}</h6>
+                    ${getStatusBadge(server.is_valid)}
+                </div>
+                
+                <div class="popup-body">
+                    <div class="info-row">
+                        <i class="fas fa-plug text-primary"></i>
+                        <span>Порт: ${server.port}</span>
+                    </div>
+                    
+                    ${server.country ? `
+                        <div class="info-row">
+                            <i class="fas fa-flag text-info"></i>
+                            <span>${server.country}${server.city ? `, ${server.city}` : ''}</span>
+                        </div>
+                    ` : ''}
+                    
+                    ${server.last_check ? `
+                        <div class="info-row">
+                            <i class="fas fa-clock text-muted"></i>
+                            <span>Проверен: ${formatDate(server.last_check)}</span>
+                        </div>
+                    ` : ''}
+                </div>
+                
+                <div class="popup-actions">
+                    <button class="btn btn-sm btn-gradient" onclick="validateSingleServer(${server.id})">
+                        <i class="fas fa-check me-1"></i>Проверить
+                    </button>
+                    <button class="btn btn-sm btn-outline-info" onclick="showServerDetails(${JSON.stringify(server)})">
+                        <i class="fas fa-eye me-1"></i>Подробнее
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    function showServerDetails(server) {
+        const sidebar = document.getElementById('serverDetailsSidebar');
+        const content = document.getElementById('serverDetailsContent');
+        
+        content.innerHTML = `
+            <div class="server-detail-card">
+                <div class="detail-header">
+                    <h5 class="text-gradient mb-1">${server.host}</h5>
+                    ${getStatusBadge(server.is_valid)}
+                </div>
+                
+                <div class="detail-section">
+                    <h6 class="section-title">
+                        <i class="fas fa-network-wired me-2"></i>Подключение
+                    </h6>
+                    <div class="detail-grid">
+                        <div class="detail-item">
+                            <span class="detail-label">Хост:</span>
+                            <span class="detail-value">${server.host}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Порт:</span>
+                            <span class="detail-value">${server.port}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Пользователь:</span>
+                            <span class="detail-value">${server.username}</span>
+                        </div>
+                    </div>
+                </div>
+                
+                ${server.country ? `
+                    <div class="detail-section">
+                        <h6 class="section-title">
+                            <i class="fas fa-map-marker-alt me-2"></i>Местоположение
+                        </h6>
+                        <div class="detail-grid">
+                            <div class="detail-item">
+                                <span class="detail-label">Страна:</span>
+                                <span class="detail-value">${server.country}</span>
+                            </div>
+                            ${server.city ? `
+                                <div class="detail-item">
+                                    <span class="detail-label">Город:</span>
+                                    <span class="detail-value">${server.city}</span>
+                                </div>
+                            ` : ''}
+                            <div class="detail-item">
+                                <span class="detail-label">Координаты:</span>
+                                <span class="detail-value">${server.latitude.toFixed(4)}, ${server.longitude.toFixed(4)}</span>
+                            </div>
+                        </div>
+                    </div>
+                ` : ''}
+                
+                <div class="detail-actions">
+                    <button class="btn btn-gradient btn-sm w-100 mb-2" onclick="validateSingleServer(${server.id})">
+                        <i class="fas fa-check me-2"></i>Проверить сервер
+                    </button>
+                    <button class="btn btn-outline-primary btn-sm w-100 mb-2" onclick="executeCommand(${server.id})">
+                        <i class="fas fa-terminal me-2"></i>Выполнить команду
+                    </button>
+                    <a href="/server/${server.id}" class="btn btn-outline-info btn-sm w-100">
+                        <i class="fas fa-external-link-alt me-2"></i>Открыть детали
+                    </a>
+                </div>
+            </div>
+        `;
+        
+        sidebar.classList.add('show');
+    }
+
+    function closeServerDetails() {
+        document.getElementById('serverDetailsSidebar').classList.remove('show');
+    }
+
     function getStatusBadge(isValid) {
         if (isValid === null) {
-            return '<span class="badge bg-warning">Не проверен</span>';
+            return '<span class="badge bg-warning"><i class="fas fa-question-circle me-1"></i>Не проверен</span>';
         } else if (isValid) {
-            return '<span class="badge bg-success">Доступен</span>';
+            return '<span class="badge bg-success"><i class="fas fa-check-circle me-1"></i>Доступен</span>';
         } else {
-            return '<span class="badge bg-danger">Недоступен</span>';
+            return '<span class="badge bg-danger"><i class="fas fa-times-circle me-1"></i>Недоступен</span>';
         }
+    }
+
+    function formatDate(dateString) {
+        const date = new Date(dateString);
+        return date.toLocaleString('ru-RU');
+    }
+
+    // Map control functions
+    function refreshMap() {
+        sshManager.showToast('Обновление карты...', 'info');
+        setTimeout(() => {
+            location.reload();
+        }, 500);
     }
 
     function fitAllMarkers() {
@@ -171,48 +536,720 @@
         }
     }
 
-    function refreshMap() {
-        location.reload();
+    function toggleHeatmap() {
+        isHeatmapMode = !isHeatmapMode;
+        
+        if (isHeatmapMode) {
+            // Hide markers and show heatmap
+            map.removeLayer(markerClusterGroup);
+            
+            const heatData = serversData
+                .filter(server => server.latitude && server.longitude)
+                .map(server => [server.latitude, server.longitude, server.is_valid ? 1 : 0.3]);
+            
+            heatmapLayer = L.heatLayer(heatData, {
+                radius: 25,
+                blur: 15,
+                maxZoom: 18,
+                gradient: {
+                    0.2: '#313695',
+                    0.4: '#74add1',
+                    0.6: '#fed976',
+                    0.8: '#feb24c',
+                    1.0: '#fd8d3c'
+                }
+            }).addTo(map);
+            
+            sshManager.showToast('Тепловая карта включена', 'info');
+        } else {
+            // Show markers and hide heatmap
+            if (heatmapLayer) {
+                map.removeLayer(heatmapLayer);
+            }
+            map.addLayer(markerClusterGroup);
+            sshManager.showToast('Обычная карта включена', 'info');
+        }
     }
 
+    function toggleSatellite() {
+        isSatelliteMode = !isSatelliteMode;
+        
+        map.removeLayer(currentTileLayer);
+        
+        if (isSatelliteMode) {
+            currentTileLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                attribution: '© Esri, DigitalGlobe, GeoEye',
+                maxZoom: 18
+            });
+            sshManager.showToast('Спутниковая карта включена', 'info');
+        } else {
+            currentTileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors',
+                maxZoom: 18
+            });
+            sshManager.showToast('Обычная карта включена', 'info');
+        }
+        
+        currentTileLayer.addTo(map);
+    }
+
+    function locateUser() {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(function(position) {
+                const lat = position.coords.latitude;
+                const lon = position.coords.longitude;
+                
+                map.setView([lat, lon], 10);
+                
+                L.marker([lat, lon], {
+                    icon: L.divIcon({
+                        className: 'user-location-marker',
+                        html: '<div class="user-location-pin"><i class="fas fa-user"></i></div>',
+                        iconSize: [20, 20],
+                        iconAnchor: [10, 10]
+                    })
+                }).addTo(map).bindPopup('Ваше местоположение');
+                
+                sshManager.showToast('Местоположение найдено', 'success');
+            }, function() {
+                sshManager.showToast('Не удалось определить местоположение', 'error');
+            });
+        } else {
+            sshManager.showToast('Геолокация не поддерживается', 'error');
+        }
+    }
+
+    function updateMapStats() {
+        const validCount = serversData.filter(s => s.is_valid === true).length;
+        const invalidCount = serversData.filter(s => s.is_valid === false).length;
+        const uncheckedCount = serversData.filter(s => s.is_valid === null).length;
+        
+        document.getElementById('validCount').textContent = validCount;
+        document.getElementById('invalidCount').textContent = invalidCount;
+        document.getElementById('uncheckedCount').textContent = uncheckedCount;
+    }
+
+    function setupAutoRefresh() {
+        const autoRefreshCheckbox = document.getElementById('autoRefresh');
+        let refreshInterval;
+
+        autoRefreshCheckbox.addEventListener('change', function() {
+            if (this.checked) {
+                refreshInterval = setInterval(refreshMap, 60000); // 1 minute
+                sshManager.showToast('Автообновление включено', 'info');
+            } else {
+                if (refreshInterval) {
+                    clearInterval(refreshInterval);
+                }
+                sshManager.showToast('Автообновление отключено', 'info');
+            }
+        });
+    }
+
+    // Filter functions
+    function showMapFilters() {
+        new bootstrap.Modal(document.getElementById('mapFiltersModal')).show();
+        populateFilterOptions();
+    }
+
+    function populateFilterOptions() {
+        // Populate country filters
+        const countries = [...new Set(serversData.map(s => s.country).filter(Boolean))];
+        const countryFilters = document.getElementById('countryFilters');
+        countryFilters.innerHTML = countries.map(country => `
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" value="${country}" id="country_${country}" checked>
+                <label class="form-check-label" for="country_${country}">
+                    ${country}
+                </label>
+            </div>
+        `).join('');
+
+        // Populate OS filters
+        const osTypes = [...new Set(serversData.map(s => s.os_info).filter(Boolean))];
+        const osFilters = document.getElementById('osFilters');
+        osFilters.innerHTML = osTypes.map(os => `
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" value="${os}" id="os_${os}" checked>
+                <label class="form-check-label" for="os_${os}">
+                    ${os}
+                </label>
+            </div>
+        `).join('');
+    }
+
+    function applyMapFilters() {
+        // Get filter values
+        const showValid = document.getElementById('showValid').checked;
+        const showInvalid = document.getElementById('showInvalid').checked;
+        const showUnchecked = document.getElementById('showUnchecked').checked;
+        
+        // Filter markers
+        markerClusterGroup.clearLayers();
+        
+        const filteredMarkers = markers.filter(marker => {
+            const server = marker.serverData;
+            
+            // Status filter
+            if (server.is_valid === true && !showValid) return false;
+            if (server.is_valid === false && !showInvalid) return false;
+            if (server.is_valid === null && !showUnchecked) return false;
+            
+            return true;
+        });
+        
+        filteredMarkers.forEach(marker => {
+            markerClusterGroup.addLayer(marker);
+        });
+        
+        bootstrap.Modal.getInstance(document.getElementById('mapFiltersModal')).hide();
+        sshManager.showToast(`Показано ${filteredMarkers.length} серверов`, 'success');
+    }
+
+    function resetMapFilters() {
+        // Reset all checkboxes
+        document.querySelectorAll('#mapFiltersModal input[type="checkbox"]').forEach(cb => {
+            cb.checked = true;
+        });
+        
+        // Reset select
+        document.getElementById('dateFilter').value = 'all';
+        
+        sshManager.showToast('Фильтры сброшены', 'info');
+    }
+
+    // Action functions
+    function validateSingleServer(serverId) {
+        if (sshManager.currentOperation) {
+            sshManager.showToast('Уже выполняется операция', 'warning');
+            return;
+        }
+
+        sshManager.currentOperation = 'validation';
+        sshManager.showProgress('Проверка сервера...');
+
+        fetch('/validate', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                server_ids: [serverId],
+                threads: 1,
+                timeout: sshManager.currentSettings.timeout
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                sshManager.progressInterval = setInterval(checkValidationStatus, 1000);
+            } else {
+                sshManager.showToast('Ошибка: ' + data.error, 'error');
+                sshManager.hideProgress();
+                sshManager.currentOperation = null;
+            }
+        })
+        .catch(error => {
+            console.error('Ошибка:', error);
+            sshManager.showToast('Ошибка выполнения запроса', 'error');
+            sshManager.hideProgress();
+            sshManager.currentOperation = null;
+        });
+    }
+
+    function checkValidationStatus() {
+        fetch('/validation_status')
+        .then(response => response.json())
+        .then(data => {
+            if (data.running) {
+                sshManager.updateProgress(data);
+            } else {
+                sshManager.hideProgress();
+                sshManager.currentOperation = null;
+                sshManager.showToast('Проверка завершена', 'success');
+                setTimeout(() => location.reload(), 2000);
+            }
+        })
+        .catch(error => {
+            console.error('Ошибка:', error);
+            sshManager.hideProgress();
+            sshManager.currentOperation = null;
+        });
+    }
+
+    function executeCommand(serverId) {
+        const command = prompt('Введите команду для выполнения:');
+        if (!command) return;
+
+        sshManager.showToast('Выполнение команды...', 'info');
+        
+        fetch('/execute_command', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                command: command,
+                server_ids: [serverId],
+                threads: 1,
+                timeout: sshManager.currentSettings.timeout
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                sshManager.showToast('Команда отправлена', 'success');
+            } else {
+                sshManager.showToast('Ошибка: ' + data.error, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Ошибка:', error);
+            sshManager.showToast('Ошибка выполнения команды', 'error');
+        });
+    }
+
+    function exportMapData() {
+        const exportData = {
+            timestamp: new Date().toISOString(),
+            servers: serversData.length,
+            data: serversData
+        };
+        
+        const blob = new Blob([JSON.stringify(exportData, null, 2)], {
+            type: 'application/json'
+        });
+        
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `servers_map_data_${new Date().toISOString().slice(0, 10)}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        sshManager.showToast('Данные карты экспортированы', 'success');
+    }
+
+    // Initialize map when DOM is loaded
     document.addEventListener('DOMContentLoaded', function() {
         initMap();
+        
+        // Setup status filter listeners
+        ['showValid', 'showInvalid', 'showUnchecked'].forEach(id => {
+            document.getElementById(id).addEventListener('change', applyMapFilters);
+        });
     });
 
-    const style = document.createElement('style');
-    style.textContent = `
-        .custom-popup .leaflet-popup-content {
-            margin: 8px 12px;
-            line-height: 1.4;
-        }
-        
-        .server-popup {
-            font-family: inherit;
-        }
-        
-        .server-popup h6 {
-            margin-bottom: 8px;
-            color: #333;
-        }
-        
-        .server-popup .btn {
-            font-size: 11px;
-        }
-        
-        .custom-marker {
-            background: none !important;
-            border: none !important;
-        }
-        
-        .leaflet-popup-content-wrapper {
-            border-radius: 8px;
-        }
-        
-        .leaflet-popup-tip {
-            background: white;
-        }
-    `;
-    document.head.appendChild(style);
+    // Global function for popup buttons
+    window.validateSingleServer = validateSingleServer;
+    window.showServerDetails = showServerDetails;
 </script>
+
+<style>
+    .modern-map {
+        height: 70vh;
+        min-height: 500px;
+        border-radius: var(--radius-lg);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .map-loading-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(10px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        border-radius: var(--radius-lg);
+    }
+
+    .map-controls {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        z-index: 1000;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .map-control-group {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+
+    .map-status-filter .btn-group-vertical {
+        box-shadow: var(--shadow-lg);
+    }
+
+    .map-stats {
+        position: absolute;
+        bottom: 10px;
+        left: 10px;
+        z-index: 1000;
+        padding: 15px;
+        border-radius: var(--radius-lg);
+        min-width: 200px;
+    }
+
+    .stats-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .stat-item {
+        text-align: center;
+    }
+
+    .stat-value {
+        display: block;
+        font-size: 1.2em;
+        font-weight: bold;
+        line-height: 1;
+    }
+
+    .stat-label {
+        font-size: 0.8em;
+        color: var(--gray-600);
+        display: block;
+        margin-top: 2px;
+    }
+
+    .stat-divider {
+        width: 1px;
+        height: 30px;
+        background: var(--gray-300);
+        margin: 0 10px;
+    }
+
+    .server-details-sidebar {
+        position: fixed;
+        top: 80px;
+        right: -400px;
+        width: 350px;
+        height: calc(100vh - 100px);
+        z-index: 1050;
+        transition: right var(--transition-normal);
+        overflow-y: auto;
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--gray-200);
+    }
+
+    .server-details-sidebar.show {
+        right: 20px;
+    }
+
+    .sidebar-header {
+        padding: 15px;
+        border-bottom: 1px solid var(--gray-200);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .sidebar-content {
+        padding: 15px;
+    }
+
+    .server-detail-card {
+        border: none;
+    }
+
+    .detail-header {
+        margin-bottom: 20px;
+        text-align: center;
+    }
+
+    .detail-section {
+        margin-bottom: 20px;
+    }
+
+    .section-title {
+        color: var(--gray-700);
+        margin-bottom: 10px;
+        font-size: 0.9em;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .detail-grid {
+        display: grid;
+        gap: 8px;
+    }
+
+    .detail-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 5px 0;
+        border-bottom: 1px solid var(--gray-100);
+    }
+
+    .detail-label {
+        font-size: 0.85em;
+        color: var(--gray-600);
+    }
+
+    .detail-value {
+        font-size: 0.85em;
+        font-weight: 500;
+        color: var(--gray-800);
+    }
+
+    .detail-actions {
+        margin-top: 20px;
+    }
+
+    /* Custom marker styles */
+    .custom-marker {
+        background: none !important;
+        border: none !important;
+    }
+
+    .marker-pin {
+        position: relative;
+        width: 30px;
+        height: 40px;
+        border-radius: 50% 50% 50% 0;
+        transform: rotate(-45deg);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        transition: all var(--transition-fast);
+    }
+
+    .marker-pin:hover {
+        transform: rotate(-45deg) scale(1.1);
+    }
+
+    .marker-pin.marker-valid {
+        background: linear-gradient(135deg, #28a745, #20c997);
+    }
+
+    .marker-pin.marker-invalid {
+        background: linear-gradient(135deg, #dc3545, #fd7e14);
+    }
+
+    .marker-pin.marker-unchecked {
+        background: linear-gradient(135deg, #ffc107, #fd7e14);
+    }
+
+    .marker-icon {
+        transform: rotate(45deg);
+        color: white;
+        font-size: 12px;
+    }
+
+    .marker-pulse {
+        position: absolute;
+        top: -5px;
+        left: -5px;
+        right: -5px;
+        bottom: -5px;
+        border-radius: 50% 50% 50% 0;
+        animation: marker-pulse 2s infinite;
+        opacity: 0;
+    }
+
+    .marker-pin.marker-valid .marker-pulse {
+        background: #28a745;
+    }
+
+    .marker-pin.marker-invalid .marker-pulse {
+        background: #dc3545;
+    }
+
+    .marker-pin.marker-unchecked .marker-pulse {
+        background: #ffc107;
+    }
+
+    @keyframes marker-pulse {
+        0% {
+            transform: rotate(-45deg) scale(1);
+            opacity: 0.6;
+        }
+        100% {
+            transform: rotate(-45deg) scale(1.5);
+            opacity: 0;
+        }
+    }
+
+    /* Marker legend styles */
+    .marker-legend {
+        width: 12px;
+        height: 15px;
+        border-radius: 50% 50% 50% 0;
+        transform: rotate(-45deg);
+        display: inline-block;
+        margin-right: 5px;
+    }
+
+    .marker-legend.marker-valid {
+        background: #28a745;
+    }
+
+    .marker-legend.marker-invalid {
+        background: #dc3545;
+    }
+
+    .marker-legend.marker-unchecked {
+        background: #ffc107;
+    }
+
+    .marker-legend.marker-cluster {
+        background: #6c757d;
+        border-radius: 50%;
+        transform: none;
+    }
+
+    /* Cluster styles */
+    .marker-cluster {
+        background: rgba(255, 255, 255, 0.9);
+        border: 2px solid var(--primary-500);
+        border-radius: 50%;
+        color: var(--primary-700);
+        font-weight: bold;
+        text-align: center;
+        box-shadow: var(--shadow-lg);
+    }
+
+    .marker-cluster div {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        background: var(--gradient-primary);
+        color: white;
+    }
+
+    .marker-cluster-small {
+        width: 40px;
+        height: 40px;
+    }
+
+    .marker-cluster-medium {
+        width: 50px;
+        height: 50px;
+    }
+
+    .marker-cluster-large {
+        width: 60px;
+        height: 60px;
+    }
+
+    /* User location marker */
+    .user-location-marker {
+        background: none !important;
+        border: none !important;
+    }
+
+    .user-location-pin {
+        width: 20px;
+        height: 20px;
+        background: var(--gradient-primary);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        box-shadow: 0 0 10px rgba(33, 150, 243, 0.5);
+        animation: user-location-pulse 2s infinite;
+    }
+
+    @keyframes user-location-pulse {
+        0% {
+            box-shadow: 0 0 10px rgba(33, 150, 243, 0.5);
+        }
+        50% {
+            box-shadow: 0 0 20px rgba(33, 150, 243, 0.8);
+        }
+        100% {
+            box-shadow: 0 0 10px rgba(33, 150, 243, 0.5);
+        }
+    }
+
+    /* Popup styles */
+    .server-popup {
+        font-family: var(--font-family-primary);
+        min-width: 200px;
+    }
+
+    .popup-header {
+        margin-bottom: 10px;
+        text-align: center;
+    }
+
+    .popup-body {
+        margin-bottom: 15px;
+    }
+
+    .info-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 5px;
+        font-size: 0.85em;
+    }
+
+    .popup-actions {
+        display: flex;
+        gap: 5px;
+        justify-content: center;
+    }
+
+    .custom-popup .leaflet-popup-content-wrapper {
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-xl);
+    }
+
+    .custom-popup .leaflet-popup-tip {
+        background: white;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .modern-map {
+            height: 60vh;
+        }
+        
+        .server-details-sidebar {
+            width: calc(100vw - 40px);
+            right: -100vw;
+        }
+        
+        .server-details-sidebar.show {
+            right: 20px;
+        }
+        
+        .map-stats {
+            position: static;
+            margin-top: 10px;
+        }
+        
+        .stats-row {
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .stat-divider {
+            width: 100%;
+            height: 1px;
+            margin: 5px 0;
+        }
+    }
+
+    .max-height-200 {
+        max-height: 200px;
+    }
+</style>
 {% endif %}
 {% endblock %}

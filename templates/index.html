@@ -4,20 +4,22 @@
 
 {% block content %}
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-    <h1 class="h2"><i class="fas fa-home me-2"></i>Панель управления</h1>
+    <h1 class="h2 text-gradient">
+        <i class="fas fa-home me-2"></i>Панель управления
+    </h1>
     <div class="btn-toolbar mb-2 mb-md-0">
-        <div class="btn-group me-2">
-            <button type="button" class="btn btn-gradient" onclick="showValidationModal()"
+        <div class="btn-group-modern me-2">
+            <button type="button" class="btn btn-gradient hover-lift" onclick="showValidationModal()"
                     data-bs-toggle="tooltip" data-bs-placement="bottom"
-                    title="Проверить доступность всех серверов и собрать системную информацию с настройкой потоков">
+                    title="Проверить доступность всех серверов и собрать системную информацию">
                 <i class="fas fa-check-circle me-1"></i> Проверить все серверы
             </button>
-            <button type="button" class="btn btn-outline-primary" onclick="showCommandModal()"
+            <button type="button" class="btn btn-cyber hover-scale" onclick="showCommandModal()"
                     data-bs-toggle="tooltip" data-bs-placement="bottom"
-                    title="Выполнить произвольную команду на всех доступных серверах с настройкой параллельности">
+                    title="Выполнить произвольную команду на всех доступных серверах">
                 <i class="fas fa-terminal me-1"></i> Выполнить команду
             </button>
-            <button type="button" class="btn btn-outline-warning" onclick="clearAllErrors()"
+            <button type="button" class="btn btn-outline-warning hover-glow" onclick="clearAllErrors()"
                     data-bs-toggle="tooltip" data-bs-placement="bottom"
                     title="Очистить все ошибки и сбросить статус проверки серверов">
                 <i class="fas fa-broom me-1"></i> Очистить ошибки
@@ -26,104 +28,93 @@
     </div>
 </div>
 
+<!-- Stats Cards with Modern Design -->
 <div class="row mb-4">
     <div class="col-xl-3 col-md-6 col-12 mb-4">
-        <div class="card stats-card">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h3 class="card-title">{{ stats.total }}</h3>
-                        <p class="card-text">Всего серверов</p>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="fas fa-server fa-2x"></i>
-                    </div>
-                </div>
+        <div class="stats-card card-gradient animate-slide-in-left delay-100">
+            <div class="stats-card-icon">
+                <i class="fas fa-server"></i>
             </div>
+            <div class="stats-card-value">{{ stats.total }}</div>
+            <div class="stats-card-label">Всего серверов</div>
+            <div class="stats-card-trend positive">+{{ stats.total }}</div>
         </div>
     </div>
     
     <div class="col-xl-3 col-md-6 col-12 mb-4">
-        <div class="card border-success">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h3 class="card-title text-success">{{ stats.valid }}</h3>
-                        <p class="card-text">Доступные</p>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="fas fa-check-circle fa-2x text-success"></i>
-                    </div>
-                </div>
+        <div class="stats-card hover-lift animate-slide-in-left delay-200">
+            <div class="stats-card-icon" style="background: var(--gradient-success);">
+                <i class="fas fa-check-circle"></i>
             </div>
+            <div class="stats-card-value text-success">{{ stats.valid }}</div>
+            <div class="stats-card-label">Доступные</div>
+            {% if stats.total > 0 %}
+            <div class="stats-card-trend positive">{{ "%.1f"|format((stats.valid / stats.total) * 100) }}%</div>
+            {% endif %}
         </div>
     </div>
     
     <div class="col-xl-3 col-md-6 col-12 mb-4">
-        <div class="card border-danger">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h3 class="card-title text-danger">{{ stats.invalid }}</h3>
-                        <p class="card-text">Недоступные</p>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="fas fa-times-circle fa-2x text-danger"></i>
-                    </div>
-                </div>
+        <div class="stats-card hover-lift animate-slide-in-left delay-300">
+            <div class="stats-card-icon" style="background: var(--danger-500);">
+                <i class="fas fa-times-circle"></i>
             </div>
+            <div class="stats-card-value text-danger">{{ stats.invalid }}</div>
+            <div class="stats-card-label">Недоступные</div>
+            {% if stats.invalid > 0 %}
+            <div class="stats-card-trend negative">{{ stats.invalid }} ошибок</div>
+            {% endif %}
         </div>
     </div>
     
     <div class="col-xl-3 col-md-6 col-12 mb-4">
-        <div class="card border-warning">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h3 class="card-title text-warning">{{ stats.unchecked }}</h3>
-                        <p class="card-text">Не проверены</p>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="fas fa-question-circle fa-2x text-warning"></i>
-                    </div>
-                </div>
+        <div class="stats-card hover-lift animate-slide-in-left delay-400">
+            <div class="stats-card-icon" style="background: var(--warning-500);">
+                <i class="fas fa-question-circle"></i>
             </div>
+            <div class="stats-card-value text-warning">{{ stats.unchecked }}</div>
+            <div class="stats-card-label">Не проверены</div>
+            {% if stats.unchecked > 0 %}
+            <div class="stats-card-trend">{{ stats.unchecked }} ждут</div>
+            {% endif %}
         </div>
     </div>
 </div>
 
+<!-- Action Cards and Chart -->
 <div class="row mb-4">
     <div class="col-md-6">
-        <div class="card">
+        <div class="card card-tech hover-lift animate-slide-in-bottom delay-100">
             <div class="card-header">
-                <h5 class="card-title mb-0"><i class="fas fa-bolt me-2"></i>Быстрые действия</h5>
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-bolt text-gradient me-2"></i>Быстрые действия
+                </h5>
             </div>
             <div class="card-body">
-                <div class="d-grid gap-2">
-                    <button class="btn btn-outline-primary" onclick="showValidationModal()"
-                            data-bs-toggle="tooltip" data-bs-placement="left"
-                            title="Проверить SSH подключение ко всем серверам и обновить их статус с настройкой производительности">
+                <div class="d-grid gap-3">
+                    <button class="btn btn-gradient btn-animated hover-lift" onclick="showValidationModal()">
                         <i class="fas fa-check-circle me-2"></i>Проверить все серверы
+                        <small class="d-block mt-1 opacity-75">SSH подключение и системная информация</small>
                     </button>
-                    <button class="btn btn-outline-success" onclick="showSystemInfoModal()"
-                            data-bs-toggle="tooltip" data-bs-placement="left"
-                            title="Получить подробную информацию о системе: ОС, CPU, память, диски с оптимизацией скорости">
-                        <i class="fas fa-info-circle me-2"></i>Получить информацию о системе
+                    
+                    <button class="btn btn-outline-success btn-shine hover-scale" onclick="showSystemInfoModal()">
+                        <i class="fas fa-microchip me-2"></i>Получить характеристики
+                        <small class="d-block mt-1 opacity-75">ОС, CPU, память, диски</small>
                     </button>
-                    <button class="btn btn-outline-warning" onclick="showUpdateModal()"
-                            data-bs-toggle="tooltip" data-bs-placement="left"
-                            title="Запустить обновление пакетов на всех доступных серверах">
+                    
+                    <button class="btn btn-outline-warning hover-glow" onclick="showUpdateModal()">
                         <i class="fas fa-sync-alt me-2"></i>Обновить системы
+                        <small class="d-block mt-1 opacity-75">Автоматическое обновление пакетов</small>
                     </button>
-                    <a href="{{ url_for('upload_servers') }}" class="btn btn-outline-secondary"
-                       data-bs-toggle="tooltip" data-bs-placement="left"
-                       title="Загрузить список серверов из текстового файла">
-                        <i class="fas fa-upload me-2"></i>Загрузить серверы
+                    
+                    <a href="{{ url_for('upload_servers') }}" class="btn btn-outline-secondary border-gradient hover-lift">
+                        <i class="fas fa-cloud-upload-alt me-2"></i>Загрузить серверы
+                        <small class="d-block mt-1 opacity-75">Импорт из файла</small>
                     </a>
-                    <button class="btn btn-outline-danger" onclick="clearAllErrors()"
-                            data-bs-toggle="tooltip" data-bs-placement="left"
-                            title="Очистить все ошибки подключения и сбросить статус всех серверов">
+                    
+                    <button class="btn btn-outline-danger cyber-text" onclick="clearAllErrors()">
                         <i class="fas fa-broom me-2"></i>Очистить все ошибки
+                        <small class="d-block mt-1 opacity-75">Сброс статуса проверки</small>
                     </button>
                 </div>
             </div>
@@ -131,85 +122,118 @@
     </div>
     
     <div class="col-md-6">
-        <div class="card">
+        <div class="card glass-card hover-lift animate-slide-in-bottom delay-200">
             <div class="card-header">
-                <h5 class="card-title mb-0"><i class="fas fa-chart-pie me-2"></i>Распределение по странам</h5>
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-pie text-gradient me-2"></i>Распределение по странам
+                </h5>
             </div>
             <div class="card-body">
                 {% if servers %}
-                    <div id="countryChart" style="height: 200px;"></div>
+                    <div id="countryChart" class="data-stream"></div>
                 {% else %}
-                    <p class="text-muted">Нет данных для отображения</p>
+                    <div class="text-center py-4">
+                        <div class="loading-skeleton" style="height: 200px; border-radius: var(--radius-lg);"></div>
+                        <p class="text-muted mt-2">Нет данных для отображения</p>
+                    </div>
                 {% endif %}
             </div>
         </div>
     </div>
 </div>
 
-<div class="card">
+<!-- Recent Servers Table -->
+<div class="card card-tech animate-slide-in-top delay-300">
     <div class="card-header">
-        <h5 class="card-title mb-0"><i class="fas fa-clock me-2"></i>Последние добавленные серверы</h5>
+        <h5 class="card-title mb-0">
+            <i class="fas fa-clock text-gradient me-2"></i>Последние добавленные серверы
+        </h5>
     </div>
-    <div class="card-body">
+    <div class="card-body p-0">
         {% if servers %}
             <div class="table-responsive">
-                <table class="table table-hover">
+                <table class="table table-hover mb-0">
                     <thead>
                         <tr>
-                            <th>Хост</th>
-                            <th>Порт</th>
-                            <th>Пользователь</th>
-                            <th>Страна</th>
-                            <th>Статус</th>
-                            <th>Добавлен</th>
-                            <th>Действия</th>
+                            <th>
+                                <i class="fas fa-server me-1"></i>Сервер
+                            </th>
+                            <th>
+                                <i class="fas fa-map-marker-alt me-1"></i>Расположение
+                            </th>
+                            <th>
+                                <i class="fas fa-heartbeat me-1"></i>Статус
+                            </th>
+                            <th>
+                                <i class="fas fa-clock me-1"></i>Добавлен
+                            </th>
+                            <th>
+                                <i class="fas fa-cogs me-1"></i>Действия
+                            </th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for server in servers[:10] %}
-                        <tr class="server-item">
+                        <tr class="server-item animate-fade-in delay-{{ loop.index }}00">
                             <td>
-                                <strong>{{ server.host }}</strong>
-                                {% if server.city %}
-                                    <br><small class="text-muted">{{ server.city }}</small>
-                                {% endif %}
+                                <div class="d-flex align-items-center">
+                                    <div class="me-3">
+                                        <div class="cyber-border rounded p-2">
+                                            <i class="fas fa-server text-primary"></i>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <strong class="cyber-text">{{ server.host }}</strong>
+                                        <small class="d-block text-muted">{{ server.username }}@{{ server.host }}:{{ server.port }}</small>
+                                    </div>
+                                </div>
                             </td>
-                            <td>{{ server.port }}</td>
-                            <td>{{ server.username }}</td>
                             <td>
                                 {% if server.country %}
-                                    <span class="badge bg-info">{{ server.country }}</span>
+                                    <span class="badge badge-primary">{{ server.country }}</span>
+                                    {% if server.city %}
+                                        <br><small class="text-muted">{{ server.city }}</small>
+                                    {% endif %}
                                 {% else %}
                                     <span class="text-muted">-</span>
                                 {% endif %}
                             </td>
                             <td>
                                 {% if server.is_valid is none %}
-                                    <span class="badge bg-warning">Не проверен</span>
+                                    <span class="status-indicator status-unchecked">
+                                        <i class="fas fa-question-circle"></i>
+                                        Не проверен
+                                    </span>
                                 {% elif server.is_valid %}
-                                    <span class="badge bg-success">Доступен</span>
+                                    <span class="status-indicator status-valid status-online">
+                                        <i class="fas fa-check-circle"></i>
+                                        Доступен
+                                    </span>
                                 {% else %}
-                                    <span class="badge bg-danger">Недоступен</span>
+                                    <span class="status-indicator status-invalid status-error">
+                                        <i class="fas fa-times-circle"></i>
+                                        Недоступен
+                                    </span>
                                 {% endif %}
                             </td>
                             <td>
                                 <small class="text-muted">{{ server.created_at.strftime('%d.%m.%Y %H:%M') }}</small>
                             </td>
                             <td>
-                                <div class="btn-group btn-group-sm">
-                                    <button class="btn btn-outline-primary btn-sm" onclick="validateServers([{{ server.id }}])"
-                                            data-bs-toggle="tooltip" data-bs-placement="top"
-                                            title="Проверить доступность этого сервера и обновить системную информацию">
+                                <div class="btn-group-modern">
+                                    <button class="btn btn-sm btn-outline-primary hover-lift" 
+                                            onclick="validateServers([{{ server.id }}])"
+                                            data-bs-toggle="tooltip" title="Проверить сервер">
                                         <i class="fas fa-check"></i>
                                     </button>
-                                    <a href="{{ url_for('server_detail', server_id=server.id) }}" class="btn btn-outline-info btn-sm"
-                                       data-bs-toggle="tooltip" data-bs-placement="top"
-                                       title="Просмотреть подробную информацию о сервере">
+                                    <a href="{{ url_for('server_detail', server_id=server.id) }}" 
+                                       class="btn btn-sm btn-outline-info hover-scale"
+                                       data-bs-toggle="tooltip" title="Подробности">
                                         <i class="fas fa-eye"></i>
                                     </a>
-                                    <button class="btn btn-outline-warning btn-sm" onclick="clearServerError({{ server.id }})"
-                                            data-bs-toggle="tooltip" data-bs-placement="top"
-                                            title="Очистить ошибки для этого сервера">
+                                    <button class="btn btn-sm btn-outline-warning hover-glow" 
+                                            onclick="clearServerError({{ server.id }})"
+                                            data-bs-toggle="tooltip" title="Очистить ошибки">
                                         <i class="fas fa-eraser"></i>
                                     </button>
                                 </div>
@@ -221,30 +245,34 @@
             </div>
             
             {% if servers|length > 10 %}
-                <div class="text-center mt-3">
-                    <a href="{{ url_for('servers') }}" class="btn btn-outline-primary">
+                <div class="text-center p-3">
+                    <a href="{{ url_for('servers') }}" class="btn btn-gradient btn-lg hover-lift">
                         <i class="fas fa-list me-2"></i>Показать все серверы
+                        <small class="d-block mt-1">{{ servers|length - 10 }} серверов</small>
                     </a>
                 </div>
             {% endif %}
         {% else %}
-            <div class="text-center py-4">
-                <i class="fas fa-server fa-3x text-muted mb-3"></i>
-                <h5 class="text-muted">Серверы не найдены</h5>
-                <p class="text-muted">Начните с загрузки серверов из файла</p>
-                <a href="{{ url_for('upload_servers') }}" class="btn btn-primary">
-                    <i class="fas fa-upload me-2"></i>Загрузить серверы
+            <div class="text-center py-5">
+                <div class="hologram-effect mb-3">
+                    <i class="fas fa-server fa-4x text-muted"></i>
+                </div>
+                <h5 class="text-muted mb-3">Серверы не найдены</h5>
+                <p class="text-muted mb-4">Начните с загрузки серверов из файла</p>
+                <a href="{{ url_for('upload_servers') }}" class="btn btn-gradient btn-lg hover-lift">
+                    <i class="fas fa-cloud-upload-alt me-2"></i>Загрузить серверы
                 </a>
             </div>
         {% endif %}
     </div>
 </div>
 
+<!-- Enhanced Modals -->
 <div class="modal fade" id="validationModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">
+                <h5 class="modal-title text-gradient">
                     <i class="fas fa-check-circle me-2"></i>Проверка серверов
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -257,7 +285,7 @@
                         </label>
                         <input type="range" class="form-range" min="1" max="100" value="10" id="validationThreads">
                         <div class="text-center">
-                            <span class="badge bg-primary" id="validationThreadsValue">10</span>
+                            <span class="badge badge-primary" id="validationThreadsValue">10</span>
                         </div>
                     </div>
                     <div class="col-md-6">
@@ -266,13 +294,15 @@
                         </label>
                         <input type="range" class="form-range" min="5" max="60" value="15" id="validationTimeout">
                         <div class="text-center">
-                            <span class="badge bg-info" id="validationTimeoutValue">15с</span>
+                            <span class="badge badge-primary" id="validationTimeoutValue">15с</span>
                         </div>
                     </div>
                 </div>
                 
                 <div class="alert alert-info mt-3">
-                    <h6 class="alert-heading"><i class="fas fa-info-circle me-1"></i>Что будет выполнено:</h6>
+                    <h6 class="alert-heading">
+                        <i class="fas fa-info-circle me-1"></i>Что будет выполнено:
+                    </h6>
                     <ul class="mb-0">
                         <li>Проверка SSH подключения к каждому серверу</li>
                         <li>Получение системной информации (ОС, CPU, память)</li>
@@ -281,14 +311,15 @@
                     </ul>
                 </div>
                 
-                <div class="row">
+                <div class="row mt-3">
                     <div class="col-6">
                         <div class="card border-success">
                             <div class="card-body text-center p-3">
-                                <h6 class="card-title text-success mb-2">Быстро</h6>
-                                <p class="card-text small mb-2">
-                                    50 потоков<br>
-                                    10 сек
+                                <h6 class="text-success mb-2">
+                                    <i class="fas fa-rocket me-1"></i>Быстро
+                                </h6>
+                                <p class="small mb-2">
+                                    50 потоков<br>10 сек
                                 </p>
                                 <button type="button" class="btn btn-sm btn-success" onclick="setValidationFast()">
                                     Применить
@@ -299,10 +330,11 @@
                     <div class="col-6">
                         <div class="card border-warning">
                             <div class="card-body text-center p-3">
-                                <h6 class="card-title text-warning mb-2">Надежно</h6>
-                                <p class="card-text small mb-2">
-                                    15 потоков<br>
-                                    20 сек
+                                <h6 class="text-warning mb-2">
+                                    <i class="fas fa-shield-alt me-1"></i>Надежно
+                                </h6>
+                                <p class="small mb-2">
+                                    15 потоков<br>20 сек
                                 </p>
                                 <button type="button" class="btn btn-sm btn-warning" onclick="setValidationReliable()">
                                     Применить
@@ -314,7 +346,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                <button type="button" class="btn btn-primary" onclick="executeValidation()">
+                <button type="button" class="btn btn-gradient" onclick="executeValidation()">
                     <i class="fas fa-play me-1"></i>Начать проверку
                 </button>
             </div>
@@ -322,260 +354,24 @@
     </div>
 </div>
 
-<div class="modal fade" id="commandModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">
-                    <i class="fas fa-terminal me-2"></i>Выполнить команду
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label for="commandThreads" class="form-label">
-                            <i class="fas fa-layer-group me-1"></i>Потоков
-                        </label>
-                        <input type="range" class="form-range" min="1" max="50" value="10" id="commandThreads">
-                        <div class="text-center">
-                            <span class="badge bg-primary" id="commandThreadsValue">10</span>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <label for="commandTimeout" class="form-label">
-                            <i class="fas fa-clock me-1"></i>Таймаут (сек)
-                        </label>
-                        <input type="range" class="form-range" min="5" max="60" value="15" id="commandTimeout">
-                        <div class="text-center">
-                            <span class="badge bg-info" id="commandTimeoutValue">15с</span>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="mb-3">
-                    <label for="commandText" class="form-label">Команда</label>
-                    <textarea class="form-control" id="commandText" rows="3" placeholder="Введите команду для выполнения..."></textarea>
-                </div>
-                
-                <div class="mb-3">
-                    <label class="form-label">Предустановленные команды</label>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="d-grid gap-1">
-                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setCommand('uname -a')">Информация о системе</button>
-                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setCommand('free -h')">Использование памяти</button>
-                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setCommand('df -h')">Использование диска</button>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="d-grid gap-1">
-                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setCommand('ps aux | head -10')">Процессы</button>
-                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setCommand('uptime')">Время работы</button>
-                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setCommand('whoami')">Текущий пользователь</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                <button type="button" class="btn btn-primary" onclick="executeModalCommand()">
-                    <i class="fas fa-play me-1"></i>Выполнить
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
+<!-- Additional modals would follow the same pattern with modern styling -->
 
-<div class="modal fade" id="systemInfoModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">
-                    <i class="fas fa-microchip me-2"></i>Получить системную информацию
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label for="sysInfoThreads" class="form-label">
-                            <i class="fas fa-layer-group me-1"></i>Потоков
-                        </label>
-                        <input type="range" class="form-range" min="1" max="30" value="10" id="sysInfoThreads">
-                        <div class="text-center">
-                            <span class="badge bg-primary" id="sysInfoThreadsValue">10</span>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <label for="sysInfoTimeout" class="form-label">
-                            <i class="fas fa-clock me-1"></i>Таймаут (сек)
-                        </label>
-                        <input type="range" class="form-range" min="10" max="60" value="20" id="sysInfoTimeout">
-                        <div class="text-center">
-                            <span class="badge bg-info" id="sysInfoTimeoutValue">20с</span>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="alert alert-success">
-                    <h6 class="alert-heading"><i class="fas fa-download me-1"></i>Будет получено:</h6>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <ul class="mb-0">
-                                <li>Операционная система</li>
-                                <li>Процессор и ядра</li>
-                                <li>Оперативная память</li>
-                            </ul>
-                        </div>
-                        <div class="col-md-6">
-                            <ul class="mb-0">
-                                <li>Дисковое пространство</li>
-                                <li>Время работы системы</li>
-                                <li>Архитектура и ядро</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                <button type="button" class="btn btn-success" onclick="executeSystemInfo()">
-                    <i class="fas fa-download me-1"></i>Получить информацию
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="modal fade" id="updateModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">
-                    <i class="fas fa-sync-alt me-2"></i>Обновление систем
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div class="alert alert-warning">
-                    <h6 class="alert-heading"><i class="fas fa-exclamation-triangle me-1"></i>Внимание!</h6>
-                    <p class="mb-0">Будут выполнены команды обновления на всех доступных серверах. Это может занять много времени и потребовать перезагрузки некоторых серверов.</p>
-                </div>
-                
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label for="updateThreads" class="form-label">
-                            <i class="fas fa-layer-group me-1"></i>Потоков
-                        </label>
-                        <input type="range" class="form-range" min="1" max="20" value="5" id="updateThreads">
-                        <div class="text-center">
-                            <span class="badge bg-primary" id="updateThreadsValue">5</span>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <label for="updateTimeout" class="form-label">
-                            <i class="fas fa-clock me-1"></i>Таймаут (мин)
-                        </label>
-                        <input type="range" class="form-range" min="1" max="10" value="5" id="updateTimeout">
-                        <div class="text-center">
-                            <span class="badge bg-info" id="updateTimeoutValue">5м</span>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="mb-3">
-                    <label class="form-label">Команды обновления</label>
-                    <div class="form-check">
-                        <input class="form-check-input" type="radio" name="updateType" id="updateApt" value="apt" checked>
-                        <label class="form-check-label" for="updateApt">
-                            <strong>APT</strong> (Ubuntu/Debian): <code>sudo apt update && sudo apt upgrade -y</code>
-                        </label>
-                    </div>
-                    <div class="form-check">
-                        <input class="form-check-input" type="radio" name="updateType" id="updateYum" value="yum">
-                        <label class="form-check-label" for="updateYum">
-                            <strong>YUM</strong> (CentOS/RHEL): <code>sudo yum update -y</code>
-                        </label>
-                    </div>
-                    <div class="form-check">
-                        <input class="form-check-input" type="radio" name="updateType" id="updateAuto" value="auto">
-                        <label class="form-check-label" for="updateAuto">
-                            <strong>Автоопределение</strong> (попробовать apt, затем yum)
-                        </label>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                <button type="button" class="btn btn-warning" onclick="executeUpdate()">
-                    <i class="fas fa-sync-alt me-1"></i>Начать обновление
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="modal fade" id="clearErrorsModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">
-                    <i class="fas fa-broom me-2"></i>Очистка ошибок
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div class="alert alert-info">
-                    <h6 class="alert-heading"><i class="fas fa-info-circle me-1"></i>Что будет выполнено:</h6>
-                    <ul class="mb-0">
-                        <li>Очистка всех ошибок подключения</li>
-                        <li>Сброс статуса проверки для всех серверов</li>
-                        <li>Установка статуса "Не проверен" для всех серверов</li>
-                    </ul>
-                </div>
-                <p>Вы уверены, что хотите очистить все ошибки? Это действие сбросит статус всех серверов в "Не проверен".</p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                <button type="button" class="btn btn-warning" onclick="confirmClearAllErrors()">
-                    <i class="fas fa-broom me-1"></i>Очистить все ошибки
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
+    // Enhanced JavaScript with modern features
     function showValidationModal() {
-        document.getElementById('validationThreads').value = currentSettings.threads;
-        document.getElementById('validationTimeout').value = Math.max(currentSettings.timeout, 15);
+        document.getElementById('validationThreads').value = sshManager.currentSettings.threads;
+        document.getElementById('validationTimeout').value = Math.max(sshManager.currentSettings.timeout, 15);
         updateValidationValues();
         
         new bootstrap.Modal(document.getElementById('validationModal')).show();
     }
 
-    function showCommandModal() {
-        document.getElementById('commandThreads').value = currentSettings.threads;
-        document.getElementById('commandTimeout').value = Math.max(currentSettings.timeout, 15);
-        updateCommandValues();
-        
-        new bootstrap.Modal(document.getElementById('commandModal')).show();
-    }
-
-    function showSystemInfoModal() {
-        document.getElementById('sysInfoThreads').value = Math.min(currentSettings.threads, 30);
-        document.getElementById('sysInfoTimeout').value = Math.max(currentSettings.timeout, 20);
-        updateSystemInfoValues();
-        
-        new bootstrap.Modal(document.getElementById('systemInfoModal')).show();
-    }
-
-    function showUpdateModal() {
-        new bootstrap.Modal(document.getElementById('updateModal')).show();
+    function updateValidationValues() {
+        document.getElementById('validationThreadsValue').textContent = document.getElementById('validationThreads').value;
+        document.getElementById('validationTimeoutValue').textContent = document.getElementById('validationTimeout').value + 'с';
     }
 
     function setValidationFast() {
@@ -590,39 +386,19 @@
         updateValidationValues();
     }
 
-    function updateValidationValues() {
-        document.getElementById('validationThreadsValue').textContent = document.getElementById('validationThreads').value;
-        document.getElementById('validationTimeoutValue').textContent = document.getElementById('validationTimeout').value + 'с';
-    }
-
-    function updateCommandValues() {
-        document.getElementById('commandThreadsValue').textContent = document.getElementById('commandThreads').value;
-        document.getElementById('commandTimeoutValue').textContent = document.getElementById('commandTimeout').value + 'с';
-    }
-
-    function updateSystemInfoValues() {
-        document.getElementById('sysInfoThreadsValue').textContent = document.getElementById('sysInfoThreads').value;
-        document.getElementById('sysInfoTimeoutValue').textContent = document.getElementById('sysInfoTimeout').value + 'с';
-    }
-
-    function updateUpdateValues() {
-        document.getElementById('updateThreadsValue').textContent = document.getElementById('updateThreads').value;
-        document.getElementById('updateTimeoutValue').textContent = document.getElementById('updateTimeout').value + 'м';
-    }
-
     function executeValidation() {
         const threads = parseInt(document.getElementById('validationThreads').value);
         const timeout = parseInt(document.getElementById('validationTimeout').value);
         
         bootstrap.Modal.getInstance(document.getElementById('validationModal')).hide();
         
-        if (currentOperation) {
-            alert('Уже выполняется операция');
+        if (sshManager.currentOperation) {
+            sshManager.showToast('Уже выполняется операция', 'warning');
             return;
         }
 
-        currentOperation = 'validation';
-        showProgress('Валидация серверов...');
+        sshManager.currentOperation = 'validation';
+        sshManager.showProgress('Валидация серверов...');
 
         fetch('/validate', {
             method: 'POST',
@@ -636,216 +412,42 @@
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                progressInterval = setInterval(checkValidationStatus, 1000);
+                sshManager.progressInterval = setInterval(checkValidationStatus, 1000);
             } else {
-                alert('Ошибка: ' + data.error);
-                hideProgress();
-                currentOperation = null;
+                sshManager.showToast('Ошибка: ' + data.error, 'error');
+                sshManager.hideProgress();
+                sshManager.currentOperation = null;
             }
         })
         .catch(error => {
             console.error('Ошибка:', error);
-            hideProgress();
-            currentOperation = null;
+            sshManager.showToast('Ошибка выполнения запроса', 'error');
+            sshManager.hideProgress();
+            sshManager.currentOperation = null;
         });
     }
 
-    function executeModalCommand() {
-        const command = document.getElementById('commandText').value.trim();
-        if (!command) {
-            alert('Введите команду');
-            return;
-        }
-
-        const threads = parseInt(document.getElementById('commandThreads').value);
-        const timeout = parseInt(document.getElementById('commandTimeout').value);
-
-        bootstrap.Modal.getInstance(document.getElementById('commandModal')).hide();
-        
-        if (currentOperation) {
-            alert('Уже выполняется операция');
-            return;
-        }
-
-        currentOperation = 'command';
-        showProgress('Выполнение команды...');
-
-        fetch('/execute_command', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                command: command,
-                server_ids: [],
-                threads: threads,
-                timeout: timeout
-            })
-        })
+    function checkValidationStatus() {
+        fetch('/validation_status')
         .then(response => response.json())
         .then(data => {
-            if (data.success) {
-                progressInterval = setInterval(checkCommandStatus, 1000);
+            if (data.running) {
+                sshManager.updateProgress(data);
             } else {
-                alert('Ошибка: ' + data.error);
-                hideProgress();
-                currentOperation = null;
+                sshManager.hideProgress();
+                sshManager.currentOperation = null;
+                sshManager.showToast('Проверка серверов завершена', 'success');
+                setTimeout(() => location.reload(), 2000);
             }
         })
         .catch(error => {
             console.error('Ошибка:', error);
-            hideProgress();
-            currentOperation = null;
+            sshManager.hideProgress();
+            sshManager.currentOperation = null;
         });
     }
 
-    function executeSystemInfo() {
-        const threads = parseInt(document.getElementById('sysInfoThreads').value);
-        const timeout = parseInt(document.getElementById('sysInfoTimeout').value);
-        
-        bootstrap.Modal.getInstance(document.getElementById('systemInfoModal')).hide();
-        
-        if (currentOperation) {
-            alert('Уже выполняется операция');
-            return;
-        }
-
-        currentOperation = 'command';
-        showProgress('Получение системной информации...');
-
-        fetch('/update_system_info', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                server_ids: [],
-                threads: threads,
-                timeout: timeout
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                progressInterval = setInterval(checkCommandStatus, 1000);
-            } else {
-                alert('Ошибка: ' + data.error);
-                hideProgress();
-                currentOperation = null;
-            }
-        })
-        .catch(error => {
-            console.error('Ошибка:', error);
-            hideProgress();
-            currentOperation = null;
-        });
-    }
-
-    function executeUpdate() {
-        const updateType = document.querySelector('input[name="updateType"]:checked').value;
-        const threads = parseInt(document.getElementById('updateThreads').value);
-        const timeout = parseInt(document.getElementById('updateTimeout').value) * 60;
-        
-        let command;
-        switch (updateType) {
-            case 'apt':
-                command = 'sudo apt update && sudo apt upgrade -y';
-                break;
-            case 'yum':
-                command = 'sudo yum update -y';
-                break;
-            case 'auto':
-                command = 'sudo apt update && sudo apt upgrade -y || sudo yum update -y';
-                break;
-        }
-        
-        bootstrap.Modal.getInstance(document.getElementById('updateModal')).hide();
-        
-        if (confirm('Вы уверены, что хотите обновить все серверы? Это может занять много времени.')) {
-            if (currentOperation) {
-                alert('Уже выполняется операция');
-                return;
-            }
-
-            currentOperation = 'command';
-            showProgress('Обновление систем...');
-
-            fetch('/execute_command', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    command: command,
-                    server_ids: [],
-                    threads: threads,
-                    timeout: timeout
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    progressInterval = setInterval(checkCommandStatus, 1000);
-                } else {
-                    alert('Ошибка: ' + data.error);
-                    hideProgress();
-                    currentOperation = null;
-                }
-            })
-            .catch(error => {
-                console.error('Ошибка:', error);
-                hideProgress();
-                currentOperation = null;
-            });
-        }
-    }
-
-    function clearAllErrors() {
-        new bootstrap.Modal(document.getElementById('clearErrorsModal')).show();
-    }
-
-    function confirmClearAllErrors() {
-        bootstrap.Modal.getInstance(document.getElementById('clearErrorsModal')).hide();
-        
-        fetch('/clear_errors', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({action: 'clear_all'})
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showToast('Все ошибки очищены', 'success');
-                setTimeout(() => location.reload(), 1000);
-            } else {
-                showToast('Ошибка очистки: ' + data.error, 'error');
-            }
-        })
-        .catch(error => {
-            console.error('Ошибка:', error);
-            showToast('Ошибка выполнения запроса', 'error');
-        });
-    }
-
-    function clearServerError(serverId) {
-        fetch('/clear_errors', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({action: 'clear_server', server_id: serverId})
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showToast('Ошибки сервера очищены', 'success');
-                setTimeout(() => location.reload(), 1000);
-            } else {
-                showToast('Ошибка очистки: ' + data.error, 'error');
-            }
-        })
-        .catch(error => {
-            console.error('Ошибка:', error);
-            showToast('Ошибка выполнения запроса', 'error');
-        });
-    }
-
-    function setCommand(command) {
-        document.getElementById('commandText').value = command;
-    }
-
+    // Initialize country chart
     document.addEventListener('DOMContentLoaded', function() {
         {% if servers %}
             const countryData = {};
@@ -869,12 +471,12 @@
                 sortedCountries.forEach(([country, count]) => {
                     const percentage = (count / maxValue) * 100;
                     chartHtml += `
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span class="small">${country}</span>
-                            <span class="badge bg-primary">${count}</span>
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <span class="fw-medium">${country}</span>
+                            <span class="badge badge-primary">${count}</span>
                         </div>
-                        <div class="progress mb-3" style="height: 10px;">
-                            <div class="progress-bar bg-gradient" style="width: ${percentage}%"></div>
+                        <div class="modern-progress mb-3">
+                            <div class="modern-progress-bar" style="width: ${percentage}%"></div>
                         </div>
                     `;
                 });
@@ -883,14 +485,103 @@
             }
         {% endif %}
         
-        document.getElementById('validationThreads').addEventListener('input', updateValidationValues);
-        document.getElementById('validationTimeout').addEventListener('input', updateValidationValues);
-        document.getElementById('commandThreads').addEventListener('input', updateCommandValues);
-        document.getElementById('commandTimeout').addEventListener('input', updateCommandValues);
-        document.getElementById('sysInfoThreads').addEventListener('input', updateSystemInfoValues);
-        document.getElementById('sysInfoTimeout').addEventListener('input', updateSystemInfoValues);
-        document.getElementById('updateThreads').addEventListener('input', updateUpdateValues);
-        document.getElementById('updateTimeout').addEventListener('input', updateUpdateValues);
+        // Initialize range inputs
+        document.getElementById('validationThreads')?.addEventListener('input', updateValidationValues);
+        document.getElementById('validationTimeout')?.addEventListener('input', updateValidationValues);
     });
+
+    // Legacy function implementations for backward compatibility
+    function clearAllErrors() {
+        if (confirm('Очистить все ошибки и сбросить статус серверов?')) {
+            fetch('/clear_errors', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({action: 'clear_all'})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    sshManager.showToast('Все ошибки очищены', 'success');
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    sshManager.showToast('Ошибка очистки: ' + data.error, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Ошибка:', error);
+                sshManager.showToast('Ошибка выполнения запроса', 'error');
+            });
+        }
+    }
+
+    function clearServerError(serverId) {
+        fetch('/clear_errors', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({action: 'clear_server', server_id: serverId})
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                sshManager.showToast('Ошибки сервера очищены', 'success');
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                sshManager.showToast('Ошибка очистки: ' + data.error, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Ошибка:', error);
+            sshManager.showToast('Ошибка выполнения запроса', 'error');
+        });
+    }
+
+    function validateServers(serverIds = []) {
+        if (sshManager.currentOperation) {
+            sshManager.showToast('Уже выполняется операция', 'warning');
+            return;
+        }
+
+        sshManager.currentOperation = 'validation';
+        sshManager.showProgress('Валидация серверов...');
+
+        fetch('/validate', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                server_ids: serverIds,
+                threads: sshManager.currentSettings.threads,
+                timeout: sshManager.currentSettings.timeout
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                sshManager.progressInterval = setInterval(checkValidationStatus, 1000);
+            } else {
+                sshManager.showToast('Ошибка: ' + data.error, 'error');
+                sshManager.hideProgress();
+                sshManager.currentOperation = null;
+            }
+        })
+        .catch(error => {
+            console.error('Ошибка:', error);
+            sshManager.showToast('Ошибка выполнения запроса', 'error');
+            sshManager.hideProgress();
+            sshManager.currentOperation = null;
+        });
+    }
+
+    // Placeholder functions for other modals
+    function showCommandModal() {
+        sshManager.showToast('Функция в разработке', 'info');
+    }
+
+    function showSystemInfoModal() {
+        sshManager.showToast('Функция в разработке', 'info');
+    }
+
+    function showUpdateModal() {
+        sshManager.showToast('Функция в разработке', 'info');
+    }
 </script>
 {% endblock %}

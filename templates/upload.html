@@ -4,153 +4,243 @@
 
 {% block content %}
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-    <h1 class="h2"><i class="fas fa-upload me-2"></i>Загрузка серверов</h1>
+    <h1 class="h2 text-gradient">
+        <i class="fas fa-cloud-upload-alt me-2"></i>Загрузка серверов
+    </h1>
 </div>
 
 <div class="row">
     <div class="col-md-8">
-        <div class="card">
+        <!-- Main Upload Card -->
+        <div class="card card-tech hover-lift animate-slide-in-left">
             <div class="card-header">
-                <h5 class="card-title mb-0"><i class="fas fa-file-upload me-2"></i>Загрузить файл с серверами</h5>
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-file-upload text-gradient me-2"></i>Загрузить файл с серверами
+                </h5>
             </div>
             <div class="card-body">
-                <form method="POST" enctype="multipart/form-data" id="uploadForm">
-                    <div class="mb-4">
-                        <label for="file" class="form-label"
-                               data-bs-toggle="tooltip" data-bs-placement="top"
-                               title="Выберите текстовый файл с серверами в формате host:port:username:password">Выберите файл</label>
-                        <input type="file" class="form-control" id="file" name="file" accept=".txt,.csv" required>
-                        <div class="form-text">
-                            Поддерживаемые форматы: .txt, .csv. Максимальный размер: 10 МБ
+                <form method="POST" enctype="multipart/form-data" id="uploadForm" class="upload-form">
+                    <!-- Drag & Drop Area -->
+                    <div class="drag-drop-area mb-4" id="dragDropArea">
+                        <div class="text-center py-5">
+                            <div class="upload-icon mb-3">
+                                <i class="fas fa-cloud-upload-alt fa-3x text-muted"></i>
+                            </div>
+                            <h6 class="text-muted mb-2">Перетащите файл сюда или нажмите для выбора</h6>
+                            <input type="file" class="form-control d-none" id="file" name="file" accept=".txt,.csv" required>
+                            <button type="button" class="btn btn-gradient hover-lift" onclick="document.getElementById('file').click()">
+                                <i class="fas fa-folder-open me-2"></i>Выбрать файл
+                            </button>
+                            <div class="mt-3">
+                                <small class="text-muted">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    Поддерживаемые форматы: .txt, .csv. Максимальный размер: 10 МБ
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Selected File Info -->
+                    <div id="fileInfo" class="alert alert-info" style="display: none;">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-file-alt fa-2x me-3 text-primary"></i>
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1" id="fileName">Файл выбран</h6>
+                                <small class="text-muted" id="fileSize">Размер: </small>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="clearFile()">
+                                <i class="fas fa-times"></i>
+                            </button>
                         </div>
                     </div>
                     
-                    <div class="mb-4">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="autoValidate" name="auto_validate"
-                                   data-bs-toggle="tooltip" data-bs-placement="right"
-                                   title="Автоматически проверить SSH подключение ко всем загруженным серверам">
-                            <label class="form-check-label" for="autoValidate">
-                                Автоматически проверить доступность серверов после загрузки
-                            </label>
+                    <!-- Upload Options -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="card border-success">
+                                <div class="card-body">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="autoValidate" name="auto_validate">
+                                        <label class="form-check-label" for="autoValidate">
+                                            <strong>
+                                                <i class="fas fa-check-circle text-success me-1"></i>
+                                                Автоматическая проверка
+                                            </strong>
+                                            <small class="d-block text-muted">
+                                                Проверить SSH подключение ко всем загруженным серверам
+                                            </small>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="getGeoData" name="get_geo_data" checked
-                                   data-bs-toggle="tooltip" data-bs-placement="right"
-                                   title="Получить географическое расположение серверов для отображения на карте">
-                            <label class="form-check-label" for="getGeoData">
-                                Получить геоданные серверов (может замедлить загрузку)
-                            </label>
+                        <div class="col-md-6">
+                            <div class="card border-info">
+                                <div class="card-body">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="getGeoData" name="get_geo_data" checked>
+                                        <label class="form-check-label" for="getGeoData">
+                                            <strong>
+                                                <i class="fas fa-map-marker-alt text-info me-1"></i>
+                                                Получить геоданные
+                                            </strong>
+                                            <small class="d-block text-muted">
+                                                Определить географическое расположение серверов
+                                            </small>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     
+                    <!-- Upload Button -->
                     <div class="d-grid">
-                        <button type="submit" class="btn btn-gradient btn-lg"
-                                data-bs-toggle="tooltip" data-bs-placement="top"
-                                title="Загрузить и добавить серверы в базу данных">
-                            <i class="fas fa-cloud-upload-alt me-2"></i>Загрузить серверы
+                        <button type="submit" class="btn btn-gradient btn-lg btn-animated hover-lift">
+                            <i class="fas fa-rocket me-2"></i>
+                            <span class="upload-text">Загрузить серверы</span>
+                            <small class="d-block mt-1 opacity-75">Импорт и обработка данных</small>
                         </button>
                     </div>
                 </form>
             </div>
         </div>
         
-        <div class="card mt-4" id="uploadProgress" style="display: none;">
+        <!-- Upload Progress Card -->
+        <div class="card mt-4 animate-slide-in-bottom" id="uploadProgress" style="display: none;">
             <div class="card-body">
-                <h6 class="card-title">Обработка файла...</h6>
-                <div class="progress mb-2">
-                    <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                <h6 class="card-title d-flex align-items-center">
+                    <div class="loading-spinner-dots me-3">
+                        <div></div>
+                        <div></div>
+                        <div></div>
+                    </div>
+                    <span class="processing-text">Обработка файла...</span>
+                </h6>
+                <div class="modern-progress mb-3">
+                    <div class="modern-progress-bar" id="uploadProgressBar" style="width: 0%"></div>
                 </div>
-                <small class="text-muted" id="progressText">Инициализация...</small>
+                <div class="d-flex justify-content-between">
+                    <small class="text-muted" id="progressText">Инициализация...</small>
+                    <small class="text-muted" id="progressPercent">0%</small>
+                </div>
             </div>
         </div>
     </div>
     
     <div class="col-md-4">
-        <div class="card">
+        <!-- Format Info Card -->
+        <div class="card glass-card hover-lift animate-slide-in-right delay-100">
             <div class="card-header">
-                <h5 class="card-title mb-0"><i class="fas fa-info-circle me-2"></i>Формат файла</h5>
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-info-circle text-gradient me-2"></i>Формат файла
+                </h5>
             </div>
             <div class="card-body">
-                <p>Каждая строка должна содержать данные сервера в формате:</p>
-                <code>host:port:username:password</code>
+                <p class="mb-3">Каждая строка должна содержать данные сервера в формате:</p>
+                <div class="cyber-border p-3 rounded mb-3">
+                    <code class="text-primary">host:port:username:password</code>
+                </div>
                 
-                <h6 class="mt-3">Примеры:</h6>
-                <div class="bg-light p-3 rounded mb-3">
-                    <code class="d-block mb-1">68.178.246.51:22:user123:password123</code>
-                    <code class="d-block mb-1">server.example.com:2222:admin:secret</code>
-                    <code class="d-block">192.168.1.100:22:root:mypass</code>
+                <h6 class="text-gradient mb-3">
+                    <i class="fas fa-star me-1"></i>Примеры:
+                </h6>
+                <div class="bg-dark text-light p-3 rounded mb-3" style="font-family: var(--font-family-mono); font-size: 0.85em;">
+                    <div class="text-success mb-1">68.178.246.51:22:user123:password123</div>
+                    <div class="text-info mb-1">server.example.com:2222:admin:secret</div>
+                    <div class="text-warning mb-1">192.168.1.100:22:root:mypass</div>
+                    <div class="text-primary mb-1">203.0.113.10:22:centos:centos2023</div>
+                    <div class="text-secondary">demo.server.local:22:user:password123</div>
                 </div>
                 
                 <div class="alert alert-info">
-                    <h6 class="alert-heading"><i class="fas fa-lightbulb me-1"></i>Совет</h6>
-                    <small>
-                        • Пароли могут содержать двоеточия<br>
-                        • Строки начинающиеся с # игнорируются<br>
-                        • Пустые строки пропускаются<br>
-                        • Дублирующиеся серверы не добавляются
-                    </small>
+                    <h6 class="alert-heading">
+                        <i class="fas fa-lightbulb me-1"></i>Полезные советы
+                    </h6>
+                    <ul class="small mb-0">
+                        <li>Пароли могут содержать двоеточия</li>
+                        <li>Строки с # в начале игнорируются</li>
+                        <li>Пустые строки пропускаются</li>
+                        <li>Дублирующиеся серверы не добавляются</li>
+                    </ul>
                 </div>
             </div>
         </div>
         
-        <div class="card mt-3">
-            <div class="card-header">
-                <h5 class="card-title mb-0"><i class="fas fa-chart-bar me-2"></i>Статистика</h5>
+        <!-- Stats Card -->
+        <div class="card stats-card mt-3 animate-slide-in-right delay-200">
+            <div class="stats-card-icon">
+                <i class="fas fa-chart-bar"></i>
             </div>
-            <div class="card-body">
+            <div class="stats-card-value" id="totalServers">{{ total_servers or 0 }}</div>
+            <div class="stats-card-label">Всего серверов</div>
+            
+            <div class="mt-3 pt-3 border-top">
                 <div class="row text-center">
                     <div class="col-6">
-                        <h4 class="text-primary" id="totalServers">{{ total_servers or 0 }}</h4>
-                        <small class="text-muted">Всего серверов</small>
+                        <div class="text-success fw-bold" id="validServers">{{ valid_servers or 0 }}</div>
+                        <small class="text-muted">Проверенных</small>
                     </div>
                     <div class="col-6">
-                        <h4 class="text-success" id="validServers">{{ valid_servers or 0 }}</h4>
-                        <small class="text-muted">Проверенных</small>
+                        <div class="text-muted fw-bold">{{ (total_servers or 0) - (valid_servers or 0) }}</div>
+                        <small class="text-muted">Не проверены</small>
                     </div>
                 </div>
             </div>
         </div>
         
-        <div class="card mt-3">
+        <!-- Quick Actions Card -->
+        <div class="card card-tech mt-3 animate-slide-in-right delay-300">
             <div class="card-header">
-                <h5 class="card-title mb-0"><i class="fas fa-history me-2"></i>Быстрые действия</h5>
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-bolt text-gradient me-2"></i>Быстрые действия
+                </h5>
             </div>
             <div class="card-body">
                 <div class="d-grid gap-2">
-                    <button class="btn btn-outline-primary btn-sm" onclick="downloadSample()"
-                            data-bs-toggle="tooltip" data-bs-placement="left"
-                            title="Скачать пример файла с правильным форматом данных">
-                        <i class="fas fa-download me-1"></i>Скачать образец файла
+                    <button class="btn btn-outline-primary btn-shine hover-lift" onclick="downloadSample()">
+                        <i class="fas fa-download me-2"></i>Скачать образец файла
+                        <small class="d-block mt-1 opacity-75">Пример правильного формата</small>
                     </button>
-                    <button class="btn btn-outline-info btn-sm" onclick="validateAllServers()"
-                            data-bs-toggle="tooltip" data-bs-placement="left"
-                            title="Проверить доступность всех серверов в базе данных">
-                        <i class="fas fa-check-circle me-1"></i>Проверить все серверы
+                    
+                    <button class="btn btn-outline-info hover-scale" onclick="validateAllServers()">
+                        <i class="fas fa-check-circle me-2"></i>Проверить все серверы
+                        <small class="d-block mt-1 opacity-75">SSH валидация всех серверов</small>
                     </button>
-                    <a href="{{ url_for('servers') }}" class="btn btn-outline-secondary btn-sm"
-                       data-bs-toggle="tooltip" data-bs-placement="left"
-                       title="Перейти к списку всех загруженных серверов">
-                        <i class="fas fa-list me-1"></i>Просмотреть серверы
+                    
+                    <a href="{{ url_for('servers') }}" class="btn btn-outline-secondary border-gradient hover-lift">
+                        <i class="fas fa-list me-2"></i>Просмотреть серверы
+                        <small class="d-block mt-1 opacity-75">Управление загруженными серверами</small>
                     </a>
+                    
+                    <button class="btn btn-outline-warning cyber-text" onclick="clearDatabase()">
+                        <i class="fas fa-trash me-2"></i>Очистить базу данных
+                        <small class="d-block mt-1 opacity-75">Удалить все серверы</small>
+                    </button>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
+<!-- Upload Results Modal -->
 <div class="modal fade" id="resultsModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Результаты загрузки</h5>
+                <h5 class="modal-title text-gradient">
+                    <i class="fas fa-check-circle me-2"></i>Результаты загрузки
+                </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body" id="resultsContent">
+                <!-- Results will be populated here -->
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
-                <a href="{{ url_for('servers') }}" class="btn btn-primary">Просмотреть серверы</a>
+                <a href="{{ url_for('servers') }}" class="btn btn-gradient">
+                    <i class="fas fa-list me-2"></i>Просмотреть серверы
+                </a>
             </div>
         </div>
     </div>
@@ -159,37 +249,96 @@
 
 {% block scripts %}
 <script>
+    let uploadInProgress = false;
+
+    // Form submission handling
     document.getElementById('uploadForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
         const fileInput = document.getElementById('file');
         const file = fileInput.files[0];
         
         if (!file) {
-            e.preventDefault();
-            alert('Выберите файл для загрузки');
+            sshManager.showToast('Выберите файл для загрузки', 'warning');
             return;
         }
         
         if (file.size > 10 * 1024 * 1024) {
-            e.preventDefault();
-            alert('Файл слишком большой. Максимальный размер: 10 МБ');
+            sshManager.showToast('Файл слишком большой. Максимальный размер: 10 МБ', 'error');
             return;
         }
         
-        showUploadProgress();
+        if (uploadInProgress) {
+            sshManager.showToast('Загрузка уже выполняется', 'warning');
+            return;
+        }
+        
+        startUpload();
     });
-    
+
+    function startUpload() {
+        uploadInProgress = true;
+        showUploadProgress();
+        
+        const formData = new FormData(document.getElementById('uploadForm'));
+        
+        fetch(window.location.href, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => {
+            if (response.ok) {
+                return response.text();
+            }
+            throw new Error('Ошибка загрузки файла');
+        })
+        .then(html => {
+            // Parse response to check for success/error messages
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const alerts = doc.querySelectorAll('.alert');
+            
+            hideUploadProgress();
+            uploadInProgress = false;
+            
+            if (alerts.length > 0) {
+                alerts.forEach(alert => {
+                    const message = alert.textContent.trim();
+                    const isSuccess = alert.classList.contains('alert-success');
+                    sshManager.showToast(message, isSuccess ? 'success' : 'error');
+                });
+                
+                if (doc.querySelector('.alert-success')) {
+                    updateStats();
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 2000);
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Ошибка:', error);
+            hideUploadProgress();
+            uploadInProgress = false;
+            sshManager.showToast('Ошибка при загрузке файла', 'error');
+        });
+    }
+
     function showUploadProgress() {
-        document.getElementById('uploadProgress').style.display = 'block';
+        const progressCard = document.getElementById('uploadProgress');
+        progressCard.style.display = 'block';
         
         let progress = 0;
-        const progressBar = document.querySelector('#uploadProgress .progress-bar');
+        const progressBar = document.getElementById('uploadProgressBar');
         const progressText = document.getElementById('progressText');
+        const progressPercent = document.getElementById('progressPercent');
         
         const interval = setInterval(function() {
             progress += Math.random() * 15;
             if (progress > 90) progress = 90;
             
             progressBar.style.width = progress + '%';
+            progressPercent.textContent = Math.round(progress) + '%';
             
             if (progress < 30) {
                 progressText.textContent = 'Загрузка файла...';
@@ -198,13 +347,118 @@
             } else if (progress < 90) {
                 progressText.textContent = 'Получение геоданных...';
             }
+            
+            if (!uploadInProgress) {
+                clearInterval(interval);
+                progressBar.style.width = '100%';
+                progressPercent.textContent = '100%';
+                progressText.textContent = 'Завершено!';
+            }
         }, 500);
         
-        setTimeout(function() {
-            clearInterval(interval);
+        setTimeout(() => {
+            if (uploadInProgress) {
+                clearInterval(interval);
+            }
         }, 30000);
     }
-    
+
+    function hideUploadProgress() {
+        const progressCard = document.getElementById('uploadProgress');
+        setTimeout(() => {
+            progressCard.style.display = 'none';
+        }, 1000);
+    }
+
+    // Drag & Drop functionality
+    const dragDropArea = document.getElementById('dragDropArea');
+    const fileInput = document.getElementById('file');
+
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dragDropArea.addEventListener(eventName, preventDefaults, false);
+        document.body.addEventListener(eventName, preventDefaults, false);
+    });
+
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dragDropArea.addEventListener(eventName, highlight, false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+        dragDropArea.addEventListener(eventName, unhighlight, false);
+    });
+
+    dragDropArea.addEventListener('drop', handleDrop, false);
+
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+
+    function highlight(e) {
+        dragDropArea.classList.add('drag-over');
+    }
+
+    function unhighlight(e) {
+        dragDropArea.classList.remove('drag-over');
+    }
+
+    function handleDrop(e) {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        
+        if (files.length > 0) {
+            fileInput.files = files;
+            showFileInfo(files[0]);
+        }
+    }
+
+    // File input change handler
+    fileInput.addEventListener('change', function() {
+        if (this.files && this.files[0]) {
+            showFileInfo(this.files[0]);
+        }
+    });
+
+    function showFileInfo(file) {
+        const fileInfo = document.getElementById('fileInfo');
+        const fileName = document.getElementById('fileName');
+        const fileSize = document.getElementById('fileSize');
+        
+        fileName.textContent = file.name;
+        fileSize.textContent = `Размер: ${formatFileSize(file.size)}`;
+        fileInfo.style.display = 'block';
+        
+        // Update drag drop area
+        const uploadIcon = dragDropArea.querySelector('.upload-icon i');
+        uploadIcon.className = 'fas fa-file-alt fa-3x text-success';
+        
+        const dragText = dragDropArea.querySelector('h6');
+        dragText.textContent = 'Файл готов к загрузке';
+        dragText.className = 'text-success mb-2';
+    }
+
+    function clearFile() {
+        fileInput.value = '';
+        document.getElementById('fileInfo').style.display = 'none';
+        
+        // Reset drag drop area
+        const uploadIcon = dragDropArea.querySelector('.upload-icon i');
+        uploadIcon.className = 'fas fa-cloud-upload-alt fa-3x text-muted';
+        
+        const dragText = dragDropArea.querySelector('h6');
+        dragText.textContent = 'Перетащите файл сюда или нажмите для выбора';
+        dragText.className = 'text-muted mb-2';
+    }
+
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    // Action functions
     function downloadSample() {
         const sampleData = `# Образец файла SSH серверов
 # Формат: host:port:username:password
@@ -214,7 +468,13 @@
 server.example.com:2222:admin:secretpass
 10.0.0.50:22:user:mypassword
 example.org:22:ubuntu:strongpass
-test.server.com:22:root:complexpass123`;
+test.server.com:22:root:complexpass123
+
+# Дополнительные примеры
+203.0.113.10:22:centos:centos2023
+demo.server.local:22:user:password123
+api.example.net:2222:developer:devpass
+db.company.com:22:postgres:dbpass456`;
 
         const blob = new Blob([sampleData], { type: 'text/plain' });
         const url = window.URL.createObjectURL(blob);
@@ -225,69 +485,24 @@ test.server.com:22:root:complexpass123`;
         a.click();
         document.body.removeChild(a);
         window.URL.revokeObjectURL(url);
+        
+        sshManager.showToast('Образец файла скачан', 'success');
     }
-    
+
     function validateAllServers() {
         if (confirm('Запустить проверку всех серверов? Это может занять некоторое время.')) {
-            validateServers();
+            window.location.href = '{{ url_for("index") }}';
         }
     }
-    
-    const uploadForm = document.getElementById('uploadForm');
-    const fileInput = document.getElementById('file');
-    
-    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-        uploadForm.addEventListener(eventName, preventDefaults, false);
-        document.body.addEventListener(eventName, preventDefaults, false);
-    });
-    
-    ['dragenter', 'dragover'].forEach(eventName => {
-        uploadForm.addEventListener(eventName, highlight, false);
-    });
-    
-    ['dragleave', 'drop'].forEach(eventName => {
-        uploadForm.addEventListener(eventName, unhighlight, false);
-    });
-    
-    uploadForm.addEventListener('drop', handleDrop, false);
-    
-    function preventDefaults(e) {
-        e.preventDefault();
-        e.stopPropagation();
-    }
-    
-    function highlight(e) {
-        uploadForm.classList.add('border-primary', 'bg-light');
-    }
-    
-    function unhighlight(e) {
-        uploadForm.classList.remove('border-primary', 'bg-light');
-    }
-    
-    function handleDrop(e) {
-        const dt = e.dataTransfer;
-        const files = dt.files;
-        
-        if (files.length > 0) {
-            fileInput.files = files;
-            
-            const fileName = files[0].name;
-            const label = document.querySelector('label[for="file"]');
-            label.textContent = `Выбран файл: ${fileName}`;
+
+    function clearDatabase() {
+        if (confirm('Вы уверены, что хотите удалить ВСЕ серверы из базы данных? Это действие нельзя отменить!')) {
+            if (confirm('Последнее предупреждение! Все данные будут потеряны навсегда. Продолжить?')) {
+                sshManager.showToast('Функция очистки базы данных в разработке', 'warning');
+            }
         }
     }
-    
-    fileInput.addEventListener('change', function() {
-        const fileName = this.files[0] ? this.files[0].name : 'Выберите файл';
-        const label = document.querySelector('label[for="file"]');
-        
-        if (this.files[0]) {
-            label.innerHTML = `<i class="fas fa-file-alt me-2"></i>Выбран: ${fileName}`;
-        } else {
-            label.innerHTML = 'Выберите файл';
-        }
-    });
-    
+
     function updateStats() {
         fetch('/api/servers')
         .then(response => response.json())
@@ -302,63 +517,61 @@ test.server.com:22:root:complexpass123`;
             console.error('Ошибка загрузки статистики:', error);
         });
     }
-    
+
+    // Initialize page
     document.addEventListener('DOMContentLoaded', function() {
         updateStats();
     });
-    
-    {% with messages = get_flashed_messages(category_filter=['success']) %}
-        {% if messages %}
-            document.addEventListener('DOMContentLoaded', function() {
-                setTimeout(updateStats, 1000);
-            });
-        {% endif %}
-    {% endwith %}
 </script>
 
 <style>
-    .card {
-        transition: all 0.3s ease;
-    }
-    
-    .card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-    }
-    
-    #uploadForm.border-primary {
-        border: 2px dashed #007bff !important;
-    }
-    
-    #uploadForm.bg-light {
-        background-color: #f8f9fa !important;
-    }
-    
     .drag-drop-area {
-        transition: all 0.3s ease;
-        border: 2px dashed #dee2e6;
-        border-radius: 0.375rem;
-        padding: 2rem;
-        text-align: center;
+        border: 2px dashed var(--gray-300);
+        border-radius: var(--radius-xl);
+        transition: all var(--transition-fast);
         cursor: pointer;
+        background: linear-gradient(135deg, var(--gray-50), white);
     }
     
-    .drag-drop-area:hover {
-        border-color: #007bff;
-        background-color: #f8f9fa;
+    .drag-drop-area:hover,
+    .drag-drop-area.drag-over {
+        border-color: var(--primary-500);
+        background: linear-gradient(135deg, var(--primary-50), var(--primary-100));
+        transform: scale(1.02);
     }
     
-    code {
-        font-size: 0.875em;
+    .upload-icon {
+        transition: all var(--transition-normal);
     }
     
-    .progress-bar-animated {
-        animation: progress-bar-stripes 1s linear infinite;
+    .drag-drop-area:hover .upload-icon {
+        transform: scale(1.1);
     }
     
-    @keyframes progress-bar-stripes {
-        0% { background-position: 1rem 0; }
-        100% { background-position: 0 0; }
+    .upload-form {
+        position: relative;
+    }
+    
+    .processing-text {
+        background: var(--gradient-tech);
+        background-clip: text;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-weight: var(--font-weight-semibold);
+    }
+    
+    .upload-text {
+        position: relative;
+        z-index: 1;
+    }
+    
+    @keyframes upload-pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.7; }
+    }
+    
+    .btn-animated:active {
+        animation: upload-pulse 0.3s ease-in-out;
     }
 </style>
 {% endblock %}
