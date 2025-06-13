@@ -327,7 +327,50 @@ class SSHManager:
                         if 'error' not in sys_info:
                             result['sys_info'] = sys_info
                             result['sys_info_collected'] = True
-                    except Exception as exc:
+                    except Exception as sys_error:
+                        print(f"Ошибка получения системной информации для {host}: {sys_error}")
+                
+                with self.lock:
+                    self.stats['total_processed'] += 1
+                    if is_valid:
+                        self.stats['successful'] += 1
+                    else:
+                        self.stats['failed'] += 1
+                    self.stats['last_update'] = time.time()
+                
+                if callback:
+                    callback(result)
+                
+                return result
+                
+            except Exception as e:
+                result = {
+                    'server_id': server_id,
+                    'host': host,
+                    'is_valid': False,
+                    'error': f"Критическая ошибка: {str(e)}",
+                    'processing_time': time.time() - start_time,
+                    'sys_info_collected': False
+                }
+                
+                with self.lock:
+                    self.stats['total_processed'] += 1
+                    self.stats['failed'] += 1
+                    self.stats['last_update'] = time.time()
+                
+                if callback:
+                    callback(result)
+                
+                return result
+        
+        with ThreadPoolExecutor(max_workers=self.max_workers, thread_name_prefix="SSH-Validator") as executor:
+            future_to_server = {executor.submit(validate_single, server): server for server in servers}
+            
+            for future in as_completed(future_to_server):
+                try:
+                    result = future.result()
+                    results.append(result)
+                except Exception as exc:
                     server = future_to_server[future]
                     error_result = {
                         'server_id': server[0],
@@ -462,47 +505,4 @@ class SSHManager:
             self.active_connections.clear()
     
     def __del__(self):
-        self.close_all_connections() as sys_error:
-                        print(f"Ошибка получения системной информации для {host}: {sys_error}")
-                
-                with self.lock:
-                    self.stats['total_processed'] += 1
-                    if is_valid:
-                        self.stats['successful'] += 1
-                    else:
-                        self.stats['failed'] += 1
-                    self.stats['last_update'] = time.time()
-                
-                if callback:
-                    callback(result)
-                
-                return result
-                
-            except Exception as e:
-                result = {
-                    'server_id': server_id,
-                    'host': host,
-                    'is_valid': False,
-                    'error': f"Критическая ошибка: {str(e)}",
-                    'processing_time': time.time() - start_time,
-                    'sys_info_collected': False
-                }
-                
-                with self.lock:
-                    self.stats['total_processed'] += 1
-                    self.stats['failed'] += 1
-                    self.stats['last_update'] = time.time()
-                
-                if callback:
-                    callback(result)
-                
-                return result
-        
-        with ThreadPoolExecutor(max_workers=self.max_workers, thread_name_prefix="SSH-Validator") as executor:
-            future_to_server = {executor.submit(validate_single, server): server for server in servers}
-            
-            for future in as_completed(future_to_server):
-                try:
-                    result = future.result()
-                    results.append(result)
-                except Exception
+        self.close_all_connections()
