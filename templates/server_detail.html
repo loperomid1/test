@@ -37,7 +37,6 @@
 </div>
 
 <div class="row">
-    <!-- Основная информация -->
     <div class="col-md-8">
         <div class="card mb-4">
             <div class="card-header">
@@ -123,7 +122,6 @@
             </div>
         </div>
         
-        <!-- Системная информация -->
         <div class="card mb-4">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="card-title mb-0"><i class="fas fa-microchip me-2"></i>Системная информация</h5>
@@ -175,9 +173,7 @@
         </div>
     </div>
     
-    <!-- Боковая панель -->
     <div class="col-md-4">
-        <!-- Геолокация -->
         {% if server.latitude and server.longitude %}
         <div class="card mb-4">
             <div class="card-header">
@@ -211,7 +207,6 @@
         </div>
         {% endif %}
         
-        <!-- Быстрые действия -->
         <div class="card mb-4">
             <div class="card-header">
                 <h5 class="card-title mb-0"><i class="fas fa-bolt me-2"></i>Быстрые действия</h5>
@@ -237,7 +232,6 @@
             </div>
         </div>
         
-        <!-- Управление -->
         <div class="card">
             <div class="card-header">
                 <h5 class="card-title mb-0"><i class="fas fa-cog me-2"></i>Управление</h5>
@@ -256,7 +250,6 @@
     </div>
 </div>
 
-<!-- Модальное окно команды -->
 <div class="modal fade" id="commandModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -265,8 +258,28 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
+                <div class="mb-3">
+                    <label for="commandInput" class="form-label">Команда</label>
+                    <textarea class="form-control" id="commandInput" rows="3" placeholder="Введите команду..."></textarea>
+                </div>
                 <div id="resultContent"></div>
             </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" onclick="executeModalCommand()">Выполнить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="resultModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Результат выполнения</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="resultContent"></div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
             </div>
@@ -277,7 +290,6 @@
 
 {% block scripts %}
 <script>
-    // Инициализация мини-карты
     {% if server.latitude and server.longitude %}
     document.addEventListener('DOMContentLoaded', function() {
         const miniMap = L.map('miniMap', {
@@ -291,18 +303,15 @@
             attribution: '© OpenStreetMap contributors'
         }).addTo(miniMap);
 
-        // Добавляем маркер
         const marker = L.marker([{{ server.latitude }}, {{ server.longitude }}]).addTo(miniMap);
         marker.bindPopup('{{ server.host }}').openPopup();
     });
     {% endif %}
 
-    // Показать модальное окно команды
     function showCommandModal() {
         new bootstrap.Modal(document.getElementById('commandModal')).show();
     }
 
-    // Выполнить команду из модального окна
     function executeModalCommand() {
         const command = document.getElementById('commandInput').value.trim();
         if (!command) {
@@ -314,7 +323,6 @@
         executeQuickCommand(command);
     }
 
-    // Выполнить быструю команду
     function executeQuickCommand(command) {
         if (currentOperation) {
             alert('Уже выполняется операция');
@@ -335,7 +343,6 @@
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                // Ждем результат
                 const checkResult = () => {
                     fetch('/command_status')
                     .then(response => response.json())
@@ -366,7 +373,6 @@
         });
     }
 
-    // Показать результат команды
     function showCommandResult(result, command) {
         const content = `
             <div class="mb-3">
@@ -396,7 +402,6 @@
         new bootstrap.Modal(document.getElementById('resultModal')).show();
     }
 
-    // Получить системную информацию
     function getSystemInfo() {
         if (currentOperation) {
             alert('Уже выполняется операция');
@@ -437,20 +442,16 @@
         });
     }
 
-    // Редактировать сервер
     function editServer() {
-        // Простая форма редактирования
         const notes = prompt('Заметки о сервере:', '{{ server.notes or "" }}');
         if (notes !== null) {
             const tags = prompt('Теги (через запятую):', '{{ server.tags or "" }}');
             if (tags !== null) {
-                // Здесь можно отправить AJAX запрос для обновления
                 alert('Функция редактирования будет добавлена в следующих версиях');
             }
         }
     }
 
-    // Удалить сервер
     function deleteServer() {
         if (confirm('Вы уверены, что хотите удалить этот сервер? Это действие нельзя отменить.')) {
             fetch('/delete_server/{{ server.id }}', {
@@ -470,31 +471,8 @@
         }
     }
 
-    // Очистка полей модального окна при закрытии
     document.getElementById('commandModal').addEventListener('hidden.bs.modal', function() {
         document.getElementById('commandInput').value = '';
     });
 </script>
-{% endblock %}"></button>
-            </div>
-            <div class="modal-body">
-                <div class="mb-3">
-                    <label for="commandInput" class="form-label">Команда</label>
-                    <textarea class="form-control" id="commandInput" rows="3" placeholder="Введите команду..."></textarea>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                <button type="button" class="btn btn-primary" onclick="executeModalCommand()">Выполнить</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Модальное окно результатов -->
-<div class="modal fade" id="resultModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Результат выполнения</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal
+{% endblock %}

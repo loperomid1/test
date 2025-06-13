@@ -31,7 +31,6 @@
     </div>
 </div>
 
-<!-- Фильтры и поиск -->
 <div class="card mb-4">
     <div class="card-body">
         <form method="GET" class="row g-3">
@@ -112,7 +111,6 @@
     </div>
 </div>
 
-<!-- Информация и пагинация -->
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
         <span class="text-muted">
@@ -131,7 +129,6 @@
     </div>
 </div>
 
-<!-- Таблица серверов -->
 {% if servers.items %}
 <div class="card">
     <div class="card-body p-0">
@@ -224,7 +221,6 @@
     </div>
 </div>
 
-<!-- Пагинация -->
 {% if servers.pages > 1 %}
 <nav aria-label="Навигация по страницам" class="mt-4">
     <ul class="pagination justify-content-center">
@@ -278,7 +274,6 @@
 </div>
 {% endif %}
 
-<!-- Модальное окно для выполнения команды -->
 <div class="modal fade" id="commandModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -347,7 +342,6 @@
     </div>
 </div>
 
-<!-- Модальное окно для получения системной информации -->
 <div class="modal fade" id="systemInfoModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -374,7 +368,7 @@
                         </label>
                         <input type="range" class="form-range" min="10" max="60" value="15" id="sysInfoTimeout">
                         <div class="text-center">
-                            <span class="badge bg-info" id="sysInfoTimeoutValue">15</span>
+                            <span class="badge bg-info" id="sysInfoTimeoutValue">15с</span>
                         </div>
                     </div>
                 </div>
@@ -423,7 +417,6 @@
         }
         
         if (confirm(`Вы уверены, что хотите удалить ${selected.length} серверов?`)) {
-            // Реализация удаления нескольких серверов
             Promise.all(selected.map(id => 
                 fetch(`/delete_server/${id}`, {method: 'POST'})
             )).then(() => {
@@ -452,7 +445,6 @@
     }
 
     function showCommandModal() {
-        // Устанавливаем значения из глобальных настроек
         document.getElementById('commandThreads').value = currentSettings.threads;
         document.getElementById('commandTimeout').value = currentSettings.timeout;
         updateCommandModalValues();
@@ -461,7 +453,6 @@
     }
 
     function showSystemInfoModal() {
-        // Устанавливаем значения из глобальных настроек
         document.getElementById('sysInfoThreads').value = Math.min(currentSettings.threads, 30);
         document.getElementById('sysInfoTimeout').value = Math.max(currentSettings.timeout, 15);
         updateSystemInfoModalValues();
@@ -582,16 +573,13 @@
         document.getElementById('sysInfoTimeoutValue').textContent = document.getElementById('sysInfoTimeout').value;
     }
 
-    // Обработчики событий
     document.addEventListener('DOMContentLoaded', function() {
-        // Обработчики для слайдеров в модальных окнах
         document.getElementById('commandThreads').addEventListener('input', updateCommandModalValues);
         document.getElementById('commandTimeout').addEventListener('input', updateCommandModalValues);
         document.getElementById('sysInfoThreads').addEventListener('input', updateSystemInfoModalValues);
         document.getElementById('sysInfoTimeout').addEventListener('input', updateSystemInfoModalValues);
     });
 
-    // Сброс выбора сервера при закрытии модального окна
     document.getElementById('commandModal').addEventListener('hidden.bs.modal', function() {
         selectedServerForCommand = null;
         document.getElementById('commandText').value = '';

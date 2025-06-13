@@ -94,7 +94,6 @@
 <body>
     <div class="container-fluid">
         <div class="row">
-            <!-- Sidebar -->
             <nav class="col-md-3 col-lg-2 d-md-block sidebar collapse">
                 <div class="position-sticky pt-3">
                     <div class="text-center mb-4">
@@ -140,7 +139,6 @@
                     
                     <hr class="text-white-50">
                     
-                    <!-- Быстрые настройки -->
                     <div class="px-3 mb-3">
                         <button class="btn btn-outline-light btn-sm w-100" onclick="showSettingsModal()"
                                 data-bs-toggle="tooltip" data-bs-placement="right"
@@ -166,9 +164,7 @@
                 </div>
             </nav>
 
-            <!-- Main content -->
             <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 main-content">
-                <!-- Progress bar -->
                 <div id="progressContainer" class="progress-container">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <div>
@@ -191,14 +187,12 @@
                     </div>
                 </div>
 
-                <!-- Loading spinner -->
                 <div id="loadingSpinner" class="loading-spinner">
                     <div class="spinner-border text-primary" role="status">
                         <span class="visually-hidden">Загрузка...</span>
                     </div>
                 </div>
 
-                <!-- Flash messages -->
                 {% with messages = get_flashed_messages(with_categories=true) %}
                     {% if messages %}
                         {% for category, message in messages %}
@@ -210,7 +204,6 @@
                     {% endif %}
                 {% endwith %}
 
-                <!-- Page content -->
                 <div class="pt-3">
                     {% block content %}{% endblock %}
                 </div>
@@ -218,7 +211,6 @@
         </div>
     </div>
 
-    <!-- Модальное окно настроек -->
     <div class="modal fade" id="settingsModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -305,7 +297,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
     <script>
-        // Глобальные переменные
         let currentOperation = null;
         let progressInterval = null;
         let currentSettings = {
@@ -313,7 +304,6 @@
             timeout: 10
         };
 
-        // Обновление времени
         function updateTime() {
             const now = new Date();
             const timeString = now.toLocaleTimeString('ru-RU', {
@@ -326,7 +316,6 @@
             }
         }
 
-        // Показать/скрыть прогресс бар
         function showProgress(text = 'Обработка...') {
             document.getElementById('progressContainer').style.display = 'block';
             document.getElementById('progressText').textContent = text;
@@ -345,25 +334,21 @@
             }
         }
 
-        // Обновление прогресса
         function updateProgress(status) {
             const percent = status.total > 0 ? (status.progress / status.total) * 100 : 0;
             document.getElementById('progressBar').style.width = percent + '%';
             document.getElementById('progressCount').textContent = `${status.progress} / ${status.total}`;
             
-            // Детали производительности
             if (status.threads && status.timeout) {
                 document.getElementById('progressDetails').textContent = 
                     `Потоков: ${status.threads}, Таймаут: ${status.timeout}с`;
             }
             
-            // Скорость
             if (status.servers_per_second) {
                 document.getElementById('progressSpeed').textContent = 
                     `${status.servers_per_second} сер/сек`;
             }
             
-            // Оставшееся время
             if (status.estimated_time && status.estimated_time > 0) {
                 const minutes = Math.floor(status.estimated_time / 60);
                 const seconds = Math.floor(status.estimated_time % 60);
@@ -377,7 +362,6 @@
             }
         }
 
-        // Остановка операции
         function stopOperation() {
             if (currentOperation) {
                 fetch('/stop_operation', {
@@ -390,7 +374,6 @@
             }
         }
 
-        // Валидация серверов
         function validateServers(serverIds = []) {
             if (currentOperation) {
                 alert('Уже выполняется операция');
@@ -445,7 +428,6 @@
             });
         }
 
-        // Выполнение команды
         function executeCommand() {
             if (currentOperation) {
                 alert('Уже выполняется операция');
@@ -533,7 +515,6 @@
             document.body.insertAdjacentHTML('beforeend', html);
             new bootstrap.Modal(document.getElementById('resultsModal')).show();
             
-            // Удаляем модальное окно после закрытия
             document.getElementById('resultsModal').addEventListener('hidden.bs.modal', function() {
                 this.remove();
             });
@@ -544,7 +525,6 @@
             return Array.from(checkboxes).map(cb => parseInt(cb.value));
         }
 
-        // Функции для работы с чекбоксами
         function toggleAllServers() {
             const masterCheckbox = document.getElementById('selectAll');
             const checkboxes = document.querySelectorAll('input[name="server_ids"]');
@@ -554,9 +534,7 @@
             });
         }
 
-        // Настройки
         function showSettingsModal() {
-            // Загружаем текущие настройки
             document.getElementById('threadsInput').value = currentSettings.threads;
             document.getElementById('timeoutInput').value = currentSettings.timeout;
             document.getElementById('threadsValue').textContent = currentSettings.threads;
@@ -569,16 +547,13 @@
             currentSettings.threads = parseInt(document.getElementById('threadsInput').value);
             currentSettings.timeout = parseInt(document.getElementById('timeoutInput').value);
             
-            // Обновляем отображение в sidebar
             document.getElementById('current-threads').textContent = currentSettings.threads;
             document.getElementById('current-timeout').textContent = currentSettings.timeout;
             
-            // Сохраняем в localStorage
             localStorage.setItem('sshManagerSettings', JSON.stringify(currentSettings));
             
             bootstrap.Modal.getInstance(document.getElementById('settingsModal')).hide();
             
-            // Показываем уведомление
             showToast('Настройки сохранены', 'success');
         }
 
@@ -609,7 +584,6 @@
                 </div>
             `;
             
-            // Создаем контейнер для toast если его нет
             let toastContainer = document.getElementById('toastContainer');
             if (!toastContainer) {
                 toastContainer = document.createElement('div');
@@ -623,22 +597,18 @@
             const toast = new bootstrap.Toast(toastElement);
             toast.show();
             
-            // Удаляем toast после скрытия
             toastElement.addEventListener('hidden.bs.toast', () => {
                 toastElement.remove();
             });
         }
 
-        // Утилиты
         function formatDate(dateString) {
             if (!dateString) return 'Никогда';
             const date = new Date(dateString);
             return date.toLocaleString('ru-RU');
         }
 
-        // Инициализация при загрузке страницы
         document.addEventListener('DOMContentLoaded', function() {
-            // Загружаем сохраненные настройки
             const savedSettings = localStorage.getItem('sshManagerSettings');
             if (savedSettings) {
                 currentSettings = JSON.parse(savedSettings);
@@ -646,15 +616,12 @@
                 document.getElementById('current-timeout').textContent = currentSettings.timeout;
             }
             
-            // Обновляем время сразу и затем каждую минуту
             updateTime();
             setInterval(updateTime, 60000);
             
-            // Обработчики для слайдеров в настройках
             document.getElementById('threadsInput').addEventListener('input', updateSettingsDisplay);
             document.getElementById('timeoutInput').addEventListener('input', updateSettingsDisplay);
             
-            // Инициализируем все tooltips
             var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
             var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
                 return new bootstrap.Tooltip(tooltipTriggerEl);

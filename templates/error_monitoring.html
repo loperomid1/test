@@ -17,7 +17,6 @@
     </div>
 </div>
 
-<!-- Статистика ошибок -->
 <div class="row mb-4">
     <div class="col-md-3">
         <div class="card border-danger">
@@ -57,7 +56,6 @@
     </div>
 </div>
 
-<!-- Типы ошибок -->
 <div class="row mb-4">
     <div class="col-md-6">
         <div class="card">
@@ -85,7 +83,6 @@
     </div>
 </div>
 
-<!-- Частые ошибки -->
 <div class="card mb-4">
     <div class="card-header">
         <h5 class="card-title mb-0">
@@ -155,7 +152,6 @@
     </div>
 </div>
 
-<!-- Проблемные серверы -->
 <div class="card mb-4">
     <div class="card-header">
         <h5 class="card-title mb-0">
@@ -175,14 +171,12 @@
                     </tr>
                 </thead>
                 <tbody id="problematicServersTable">
-                    <!-- Динамически заполняется JavaScript -->
                 </tbody>
             </table>
         </div>
     </div>
 </div>
 
-<!-- Рекомендации -->
 <div class="card">
     <div class="card-header">
         <h5 class="card-title mb-0">
@@ -191,12 +185,10 @@
     </div>
     <div class="card-body">
         <div id="recommendations">
-            <!-- Рекомендации заполняются динамически -->
         </div>
     </div>
 </div>
 
-<!-- Модальное окно с решениями -->
 <div class="modal fade" id="solutionModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -207,7 +199,6 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body" id="solutionContent">
-                <!-- Содержимое заполняется динамически -->
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
@@ -226,7 +217,6 @@
     let errorTypesChart = null;
     let errorsTimeChart = null;
     
-    // Данные ошибок (в реальном приложении получать с сервера)
     const errorData = {
         types: {
             'SSH Banner': 45,
@@ -252,7 +242,6 @@
         ]
     };
     
-    // Решения для различных типов ошибок
     const errorSolutions = {
         ssh_banner: {
             title: 'SSH Protocol Banner Error',
@@ -341,7 +330,6 @@
     };
     
     function initCharts() {
-        // График типов ошибок
         const ctx1 = document.getElementById('errorTypesChart').getContext('2d');
         errorTypesChart = new Chart(ctx1, {
             type: 'doughnut',
@@ -369,7 +357,6 @@
             }
         });
         
-        // График ошибок по времени
         const ctx2 = document.getElementById('errorsTimeChart').getContext('2d');
         errorsTimeChart = new Chart(ctx2, {
             type: 'line',
@@ -395,7 +382,6 @@
     }
     
     function updateErrorStats() {
-        // Обновляем счетчики
         const totalErrors = Object.values(errorData.types).reduce((a, b) => a + b, 0);
         document.getElementById('totalErrors').textContent = totalErrors;
         document.getElementById('timeoutErrors').textContent = errorData.types['Timeout'] || 0;
@@ -448,7 +434,6 @@
         const recommendations = document.getElementById('recommendations');
         let html = '';
         
-        // Анализируем данные ошибок и генерируем рекомендации
         const totalErrors = Object.values(errorData.types).reduce((a, b) => a + b, 0);
         const bannerErrors = errorData.types['SSH Banner'] || 0;
         const timeoutErrors = errorData.types['Timeout'] || 0;
@@ -526,10 +511,8 @@
     }
     
     function refreshErrorStats() {
-        // В реальном приложении здесь был бы AJAX запрос
         showToast('Статистика ошибок обновлена', 'info');
         
-        // Симуляция обновления данных
         setTimeout(() => {
             updateErrorStats();
             updateProblematicServers();
@@ -545,7 +528,6 @@
     }
     
     function exportErrorReport() {
-        // Генерация отчета об ошибках
         const report = {
             timestamp: new Date().toISOString(),
             totalErrors: Object.values(errorData.types).reduce((a, b) => a + b, 0),
@@ -571,7 +553,6 @@
     }
     
     function applySolution() {
-        // Применение решения (в реальном приложении отправка на сервер)
         showToast('Настройки применены. Перезапустите проверку серверов.', 'success');
         bootstrap.Modal.getInstance(document.getElementById('solutionModal')).hide();
     }
@@ -579,14 +560,12 @@
     function retestServer(host) {
         showToast(`Повторная проверка сервера ${host} запущена`, 'info');
         
-        // Симуляция повторной проверки
         setTimeout(() => {
             showToast(`Сервер ${host} проверен`, 'success');
         }, 2000);
     }
     
     function viewServerDetails(host) {
-        // Переход к детальной странице сервера
         window.location.href = `/servers?search=${host}`;
     }
     
@@ -594,7 +573,6 @@
         if (confirm(`Исключить сервер ${host} из проверок?`)) {
             showToast(`Сервер ${host} исключен из автоматических проверок`, 'warning');
             
-            // Удаляем из списка проблемных серверов
             const index = errorData.problematicServers.findIndex(s => s.host === host);
             if (index > -1) {
                 errorData.problematicServers.splice(index, 1);
@@ -603,18 +581,15 @@
         }
     }
     
-    // Инициализация при загрузке страницы
     document.addEventListener('DOMContentLoaded', function() {
         initCharts();
         updateErrorStats();
         updateProblematicServers();
         generateRecommendations();
         
-        // Автообновление каждые 5 минут
         setInterval(refreshErrorStats, 5 * 60 * 1000);
     });
     
-    // Утилиты
     function showToast(message, type = 'info') {
         const toastHtml = `
             <div class="toast align-items-center text-white bg-${type} border-0" role="alert">

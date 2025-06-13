@@ -8,7 +8,6 @@
 </div>
 
 <div class="row">
-    <!-- Форма загрузки -->
     <div class="col-md-8">
         <div class="card">
             <div class="card-header">
@@ -56,7 +55,6 @@
             </div>
         </div>
         
-        <!-- Прогресс загрузки -->
         <div class="card mt-4" id="uploadProgress" style="display: none;">
             <div class="card-body">
                 <h6 class="card-title">Обработка файла...</h6>
@@ -68,7 +66,6 @@
         </div>
     </div>
     
-    <!-- Инструкции -->
     <div class="col-md-4">
         <div class="card">
             <div class="card-header">
@@ -115,7 +112,6 @@
             </div>
         </div>
         
-        <!-- Последние загрузки -->
         <div class="card mt-3">
             <div class="card-header">
                 <h5 class="card-title mb-0"><i class="fas fa-history me-2"></i>Быстрые действия</h5>
@@ -143,7 +139,6 @@
     </div>
 </div>
 
-<!-- Модальное окно результатов -->
 <div class="modal fade" id="resultsModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -152,7 +147,6 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body" id="resultsContent">
-                <!-- Заполняется динамически -->
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
@@ -165,7 +159,6 @@
 
 {% block scripts %}
 <script>
-    // Обработка формы загрузки
     document.getElementById('uploadForm').addEventListener('submit', function(e) {
         const fileInput = document.getElementById('file');
         const file = fileInput.files[0];
@@ -176,18 +169,15 @@
             return;
         }
         
-        // Проверка размера файла (10 МБ)
         if (file.size > 10 * 1024 * 1024) {
             e.preventDefault();
             alert('Файл слишком большой. Максимальный размер: 10 МБ');
             return;
         }
         
-        // Показываем прогресс
         showUploadProgress();
     });
     
-    // Показать прогресс загрузки
     function showUploadProgress() {
         document.getElementById('uploadProgress').style.display = 'block';
         
@@ -210,13 +200,11 @@
             }
         }, 500);
         
-        // Остановить через 30 секунд на случай зависания
         setTimeout(function() {
             clearInterval(interval);
         }, 30000);
     }
     
-    // Скачать образец файла
     function downloadSample() {
         const sampleData = `# Образец файла SSH серверов
 # Формат: host:port:username:password
@@ -239,14 +227,12 @@ test.server.com:22:root:complexpass123`;
         window.URL.revokeObjectURL(url);
     }
     
-    // Проверить все серверы
     function validateAllServers() {
         if (confirm('Запустить проверку всех серверов? Это может занять некоторое время.')) {
             validateServers();
         }
     }
     
-    // Drag & Drop функциональность
     const uploadForm = document.getElementById('uploadForm');
     const fileInput = document.getElementById('file');
     
@@ -285,14 +271,12 @@ test.server.com:22:root:complexpass123`;
         if (files.length > 0) {
             fileInput.files = files;
             
-            // Обновляем label
             const fileName = files[0].name;
             const label = document.querySelector('label[for="file"]');
             label.textContent = `Выбран файл: ${fileName}`;
         }
     }
     
-    // Обновление label при выборе файла
     fileInput.addEventListener('change', function() {
         const fileName = this.files[0] ? this.files[0].name : 'Выберите файл';
         const label = document.querySelector('label[for="file"]');
@@ -304,7 +288,6 @@ test.server.com:22:root:complexpass123`;
         }
     });
     
-    // Автоматическое обновление статистики
     function updateStats() {
         fetch('/api/servers')
         .then(response => response.json())
@@ -320,12 +303,10 @@ test.server.com:22:root:complexpass123`;
         });
     }
     
-    // Обновляем статистику при загрузке страницы
     document.addEventListener('DOMContentLoaded', function() {
         updateStats();
     });
     
-    // Показать результаты загрузки (если есть flash сообщения об успехе)
     {% with messages = get_flashed_messages(category_filter=['success']) %}
         {% if messages %}
             document.addEventListener('DOMContentLoaded', function() {

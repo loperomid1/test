@@ -17,7 +17,6 @@
     </div>
 </div>
 
-<!-- Статистика -->
 <div class="card mb-3">
     <div class="card-body py-2">
         <div class="row align-items-center">
@@ -42,7 +41,6 @@
     </div>
 </div>
 
-<!-- Карта или заглушка -->
 {% if servers|length > 0 %}
 <div class="card">
     <div class="card-body p-0">
@@ -69,29 +67,23 @@
     let map;
     let markers = [];
 
-    // Данные серверов
     const serversData = {{ servers | tojson | safe }};
 
-    // Инициализация карты
     function initMap() {
         map = L.map('map').setView([40.0, 0.0], 2);
 
-        // Добавляем тайлы карты
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap contributors',
             maxZoom: 18
         }).addTo(map);
 
-        // Добавляем маркеры
         addMarkers();
 
-        // Подгоняем карту под все маркеры
         if (markers.length > 0) {
             fitAllMarkers();
         }
     }
 
-    // Добавление маркеров на карту
     function addMarkers() {
         serversData.forEach(server => {
             if (server.latitude && server.longitude) {
@@ -101,7 +93,6 @@
         });
     }
 
-    // Создание маркера для сервера
     function createMarker(server) {
         let markerColor = 'gray';
         
@@ -113,7 +104,6 @@
             markerColor = 'orange';
         }
 
-        // Создаем custom icon
         const customIcon = L.divIcon({
             className: 'custom-marker',
             html: `<div style="
@@ -138,7 +128,6 @@
             icon: customIcon
         }).addTo(map);
 
-        // Создаем popup с информацией о сервере
         const popupContent = `
             <div class="server-popup">
                 <h6 class="mb-2"><strong>${server.host}</strong></h6>
@@ -165,7 +154,6 @@
         return marker;
     }
 
-    // Получение badge для статуса
     function getStatusBadge(isValid) {
         if (isValid === null) {
             return '<span class="badge bg-warning">Не проверен</span>';
@@ -176,7 +164,6 @@
         }
     }
 
-    // Подгонка карты под все маркеры
     function fitAllMarkers() {
         if (markers.length > 0) {
             const group = new L.featureGroup(markers);
@@ -184,17 +171,14 @@
         }
     }
 
-    // Обновление карты
     function refreshMap() {
         location.reload();
     }
 
-    // Инициализация при загрузке страницы
     document.addEventListener('DOMContentLoaded', function() {
         initMap();
     });
 
-    // Добавляем стили для custom popup
     const style = document.createElement('style');
     style.textContent = `
         .custom-popup .leaflet-popup-content {

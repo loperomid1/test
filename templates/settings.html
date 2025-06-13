@@ -18,7 +18,6 @@
 </div>
 
 <div class="row">
-    <!-- Настройки производительности -->
     <div class="col-md-6">
         <div class="card mb-4">
             <div class="card-header">
@@ -92,7 +91,6 @@
             </div>
         </div>
         
-        <!-- Настройки автоматизации -->
         <div class="card mb-4">
             <div class="card-header">
                 <h5 class="card-title mb-0">
@@ -139,7 +137,6 @@
         </div>
     </div>
     
-    <!-- Настройки безопасности и интерфейса -->
     <div class="col-md-6">
         <div class="card mb-4">
             <div class="card-header">
@@ -184,7 +181,6 @@
             </div>
         </div>
         
-        <!-- Настройки интерфейса -->
         <div class="card mb-4">
             <div class="card-header">
                 <h5 class="card-title mb-0">
@@ -234,7 +230,6 @@
             </div>
         </div>
         
-        <!-- Уведомления -->
         <div class="card mb-4">
             <div class="card-header">
                 <h5 class="card-title mb-0">
@@ -281,7 +276,6 @@
     </div>
 </div>
 
-<!-- Системная информация -->
 <div class="row">
     <div class="col-12">
         <div class="card">
@@ -365,7 +359,6 @@
     </div>
 </div>
 
-<!-- Модальное окно подтверждения сброса -->
 <div class="modal fade" id="resetModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -394,7 +387,6 @@
 
 {% block scripts %}
 <script>
-    // Текущие настройки
     let appSettings = {
         performance: {
             defaultThreads: 10,
@@ -430,54 +422,43 @@
         }
     };
 
-    // Загрузка настроек при инициализации
     function loadSettings() {
-        // Загружаем из localStorage
         const savedSettings = localStorage.getItem('appSettings');
         if (savedSettings) {
             appSettings = { ...appSettings, ...JSON.parse(savedSettings) };
         }
         
-        // Применяем настройки к форме
         applySettingsToForm();
         
-        // Обновляем глобальные настройки для SSH операций
         if (window.currentSettings) {
             window.currentSettings.threads = appSettings.performance.defaultThreads;
             window.currentSettings.timeout = appSettings.performance.defaultTimeout;
         }
         
-        // Обновляем отображение в sidebar
         updateSidebarInfo();
     }
 
-    // Применение настроек к элементам формы
     function applySettingsToForm() {
-        // Производительность
         document.getElementById('defaultThreads').value = appSettings.performance.defaultThreads;
         document.getElementById('defaultTimeout').value = appSettings.performance.defaultTimeout;
         updatePerformanceValues();
         
-        // Автоматизация
         document.getElementById('autoCheck').checked = appSettings.automation.autoCheck;
         document.getElementById('autoCheckInterval').value = appSettings.automation.autoCheckInterval;
         document.getElementById('autoGeoUpdate').checked = appSettings.automation.autoGeoUpdate;
         document.getElementById('autoSystemInfo').checked = appSettings.automation.autoSystemInfo;
         
-        // Безопасность
         document.getElementById('encryptPasswords').checked = appSettings.security.encryptPasswords;
         document.getElementById('sessionTimeout').value = appSettings.security.sessionTimeout;
         document.getElementById('auditLog').checked = appSettings.security.auditLog;
         document.getElementById('maxFileSize').value = appSettings.security.maxFileSize;
         
-        // Интерфейс
         document.getElementById('pageSize').value = appSettings.ui.pageSize;
         document.getElementById('darkMode').checked = appSettings.ui.darkMode;
         document.getElementById('showTooltips').checked = appSettings.ui.showTooltips;
         document.getElementById('autoRefresh').checked = appSettings.ui.autoRefresh;
         document.getElementById('refreshInterval').value = appSettings.ui.refreshInterval;
         
-        // Уведомления
         document.getElementById('browserNotifications').checked = appSettings.notifications.browserNotifications;
         document.getElementById('soundNotifications').checked = appSettings.notifications.soundNotifications;
         document.getElementById('emailNotifications').value = appSettings.notifications.emailNotifications;
@@ -485,9 +466,7 @@
         document.getElementById('telegramChat').value = appSettings.notifications.telegramChat;
     }
 
-    // Сохранение всех настроек
     function saveAllSettings() {
-        // Собираем настройки из формы
         appSettings.performance.defaultThreads = parseInt(document.getElementById('defaultThreads').value);
         appSettings.performance.defaultTimeout = parseInt(document.getElementById('defaultTimeout').value);
         
@@ -513,25 +492,19 @@
         appSettings.notifications.telegramBot = document.getElementById('telegramBot').value;
         appSettings.notifications.telegramChat = document.getElementById('telegramChat').value;
         
-        // Сохраняем в localStorage
         localStorage.setItem('appSettings', JSON.stringify(appSettings));
         
-        // Обновляем глобальные настройки
         if (window.currentSettings) {
             window.currentSettings.threads = appSettings.performance.defaultThreads;
             window.currentSettings.timeout = appSettings.performance.defaultTimeout;
         }
         
-        // Применяем настройки интерфейса
         applyUISettings();
         
-        // Обновляем отображение
         updateSidebarInfo();
         
-        // Показываем уведомление
         showToast('Настройки сохранены', 'success');
         
-        // Отправляем на сервер (если нужно)
         fetch('/settings', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -541,18 +514,14 @@
         });
     }
 
-    // Применение настроек интерфейса
     function applyUISettings() {
-        // Темная тема
         if (appSettings.ui.darkMode) {
             document.body.classList.add('dark-theme');
         } else {
             document.body.classList.remove('dark-theme');
         }
         
-        // Подсказки
         if (!appSettings.ui.showTooltips) {
-            // Отключаем все tooltips
             const tooltips = document.querySelectorAll('[data-bs-toggle="tooltip"]');
             tooltips.forEach(el => {
                 const tooltip = bootstrap.Tooltip.getInstance(el);
@@ -560,7 +529,6 @@
             });
         }
         
-        // Автообновление
         if (appSettings.ui.autoRefresh) {
             setInterval(() => {
                 updateSystemStats();
@@ -568,7 +536,6 @@
         }
     }
 
-    // Сброс к настройкам по умолчанию
     function resetToDefaults() {
         new bootstrap.Modal(document.getElementById('resetModal')).show();
     }
@@ -614,7 +581,6 @@
         showToast('Настройки сброшены к значениям по умолчанию', 'info');
     }
 
-    // Предустановленные конфигурации
     function setStable() {
         document.getElementById('defaultThreads').value = 15;
         document.getElementById('defaultTimeout').value = 12;
@@ -627,13 +593,11 @@
         updatePerformanceValues();
     }
 
-    // Обновление отображения значений
     function updatePerformanceValues() {
         document.getElementById('defaultThreadsValue').textContent = document.getElementById('defaultThreads').value;
         document.getElementById('defaultTimeoutValue').textContent = document.getElementById('defaultTimeout').value + 'с';
     }
 
-    // Обновление информации в sidebar
     function updateSidebarInfo() {
         const threadsEl = document.getElementById('current-threads');
         const timeoutEl = document.getElementById('current-timeout');
@@ -641,13 +605,11 @@
         if (threadsEl) threadsEl.textContent = appSettings.performance.defaultThreads;
         if (timeoutEl) timeoutEl.textContent = appSettings.performance.defaultTimeout;
         
-        // Обновляем системную информацию
         document.getElementById('currentThreads').textContent = appSettings.performance.defaultThreads;
         document.getElementById('currentThreadsText').textContent = appSettings.performance.defaultThreads;
         document.getElementById('currentTimeoutText').textContent = appSettings.performance.defaultTimeout;
     }
 
-    // Обновление системной статистики
     function updateSystemStats() {
         fetch('/api/servers')
         .then(response => response.json())
@@ -662,9 +624,8 @@
             console.error('Ошибка получения статистики:', error);
         });
         
-        // Симуляция системных ресурсов (в реальном приложении получать с сервера)
-        const memoryUsage = Math.floor(Math.random() * 30) + 20; // 20-50%
-        const cpuUsage = Math.floor(Math.random() * 20) + 5; // 5-25%
+        const memoryUsage = Math.floor(Math.random() * 30) + 20;
+        const cpuUsage = Math.floor(Math.random() * 20) + 5;
         
         document.getElementById('memoryUsage').textContent = memoryUsage + '%';
         document.getElementById('memoryBar').style.width = memoryUsage + '%';
@@ -673,23 +634,19 @@
         document.getElementById('systemLoad').textContent = Math.max(memoryUsage, cpuUsage) + '%';
     }
 
-    // Инициализация
     document.addEventListener('DOMContentLoaded', function() {
         loadSettings();
         updateSystemStats();
         
-        // Обработчики событий для слайдеров
         document.getElementById('defaultThreads').addEventListener('input', updatePerformanceValues);
         document.getElementById('defaultTimeout').addEventListener('input', updatePerformanceValues);
         
-        // Запрос разрешения на уведомления браузера
         document.getElementById('browserNotifications').addEventListener('change', function() {
             if (this.checked && Notification.permission === 'default') {
                 Notification.requestPermission();
             }
         });
         
-        // Обновляем статистику каждые 30 секунд
         setInterval(updateSystemStats, 30000);
     });
 </script>
